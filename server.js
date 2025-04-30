@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import qs from 'qs';
 import config from './config.js';
 import winston from 'winston';
+import { youtube_v3 } from '@googleapis/youtube';
 
 // Configure logging
 const logger = winston.createLogger({
@@ -47,9 +48,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Initialize YouTube API client
+const youtube = new youtube_v3.Youtube({
+  auth: process.env.YOUTUBE_API_KEY
+});
+
 // Validate environment variables on startup
 function validateEnvVars() {
-  const requiredVars = ['SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET', 'SOUNDCLOUD_CLIENT_ID'];
+  const requiredVars = ['SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET', 'YOUTUBE_API_KEY'];
   const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
   if (missingVars.length > 0) {
@@ -126,6 +132,76 @@ app.get('/search', async (req, res) => {
     
     res.status(500).json({ error: 'Failed to search tracks' });
   }
+});
+
+// YouTube search endpoint
+app.get('/youtube-search', async (req, res) => {
+  const query = req.query.q;
+  
+  if (!query) {
+    return res.status(400).json({ error: 'Search query is required' });
+  }
+  
+  if (!process.env.YOUTUBE_API_KEY) {
+    return res.status(500).json({ error: 'Missing YouTube API key' });
+  }
+  
+  try {
+    logger.info(`Searching YouTube with query: ${query}`);
+    
+    const response = await youtube.search.list({
+      part: 'snippet',
+      q: query,
+      maxResults: 5,
+      type: 'video',
+      videoCategoryId: '10', // Music category
+      videoEmbeddable: true,
+    });
+    
+    logger.info(`Found ${response.data.items?.length || 0} YouTube results`);
+    res.json(response.data);
+  } catch (error) {
+    logger.error('YouTube Search Error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to search YouTube', message: error.message });
+  }
+});
+
+// YouTube video details endpoint (to get duration, etc.)
+app.get('/youtube-video/:id', async (req, res) => {
+  const videoId = req.params.id;
+  
+  if (!videoId) {
+    return res.status(400).json({ error: 'Video ID is required' });
+  }
+  
+  try {
+    logger.info(`Getting YouTube video details for: ${videoId}`);
+    
+    const response = await youtube.videos.list({
+      part: 'contentDetails,snippet,statistics',
+      id: videoId
+    });
+    
+    if (!response.data.items || response.data.items.length === 0) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    
+    res.json(response.data.items[0]);
+  } catch (error) {
+    logger.error('YouTube Video Detail Error:', error);
+    res.status(500).json({ error: 'Failed to get video details' });
+  }
+});
+
+// SoundCloud client ID endpoint
+app.get('/soundcloud-client-id', (req, res) => {
+  const clientId = process.env.SOUNDCLOUD_CLIENT_ID;
+  
+  if (!clientId) {
+    return res.status(500).json({ error: 'Missing SoundCloud client ID' });
+  }
+  
+  res.json({ clientId });
 });
 
 // SoundCloud search endpoint
