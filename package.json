@@ -1,0 +1,22 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@googleapis/youtube": "^22.0.0",
+    "axios": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "qs": "^6.14.0",
+    "winston": "^3.17.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "name": "music-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

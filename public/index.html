@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <div class="background">
+        <img src="images/default.jpg" alt="bg" id="bg-img">
+    </div>
+
+    <!-- Search Container -->
+    <div id="search-container">
+        <div id="mode-switch">
+            <img src="spotify-logo.png" id="spotify-logo" onclick="switchMode('spotify')" class="active"
+                alt="Spotify">
+            <img src="soundcloud-logo.png" id="soundcloud-logo" onclick="switchMode('soundcloud')" alt="SoundCloud">
+        </div>
+        <input type="text" id="search" placeholder="Search for songs...">
+        <div id="platform-info">
+            <img id="platform-logo" src="spotify-logo.png" alt="Platform">
+            <span id="platform-text">Spotify Search</span>
+        </div>
+    </div>
+    <div class="container">
+        <div class="player-img">
+            <img src="images/default.jpg" alt="Cover Art" id="cover">
+        </div>
+        <h2 id="music-title">Song Title</h2>
+        <h3 id="music-artist">Artist</h3>
+        <div class="player-progress" id="player-progress">
+            <div class="progress" id="progress"></div>
+            <div class="music-duration">
+                <span id="current-time">0:00</span>
+                <span id="duration">0:00</span>
+            </div>
+        </div>
+        <div class="player-controls">
+            <i class="fas fa-backward" id="prev"></i>
+            <i class="fas fa-play play-button" id="play"></i>
+            <i class="fas fa-forward" id="next"></i>
+        </div>
+
+        <!-- Volume Control -->
+        <div class="volume-control">
+            <i class="fas fa-volume-up volume-icon"></i>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1">
+        </div>
+        <div id="search-results"></div>
+    </div>
+    <!-- Up Next / Queue -->
+    <div id="up-next">
+        <h2>Up Next</h2>
+        <div id="queue-container">
+        </div>
+    </div>
+    <script type="module" src="index.js"></script>
+</body>
+
+</html>
