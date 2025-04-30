@@ -1,42 +1,10 @@
-// index.js - Main application logic
+import config from './config.js';
 import { searchSpotify } from './spotifySearch.js';
-import { searchSoundCloud, getSoundCloudStreamUrl } from './soundcloudSearch.js';
+import { searchSoundCloud } from './soundcloudSearch.js';
 
-// Current state
 let currentMode = 'spotify';
-let songs = [];
-let currentSong = null;
-let musicIndex = 0;
-let isPlaying = false;
-let queue = [];
-let progressInterval = null;
 
-// DOM Elements
-const image = document.getElementById('cover');
-const bgImage = document.getElementById('bg-img');
-const title = document.getElementById('music-title');
-const artist = document.getElementById('music-artist');
-const currentTimeEl = document.getElementById('current-time');
-const durationEl = document.getElementById('duration');
-const progress = document.getElementById('progress');
-const playerProgress = document.getElementById('player-progress');
-const prevBtn = document.getElementById('prev');
-const nextBtn = document.getElementById('next');
-const playBtn = document.getElementById('play');
-const searchInput = document.getElementById('search');
-const searchResults = document.getElementById('search-results');
-const volumeSlider = document.getElementById('volume-slider');
-const queueContainer = document.getElementById('queue-container');
-const upNextContainer = document.getElementById('up-next');
-
-// Audio player
-const music = new Audio();
-
-// Initialize volume from local storage or default to 0.7
-music.volume = parseFloat(localStorage.getItem('playerVolume') || 0.7);
-volumeSlider.value = music.volume;
-
-// Mode switching function
+// Updated switchMode function with better platform handling
 function switchMode(mode) {
     currentMode = mode;
     const platformLogo = document.getElementById('platform-logo');
@@ -59,16 +27,46 @@ function switchMode(mode) {
 
     document.getElementById('search-results').innerHTML = '';
     searchBar.value = '';
-    searchBar.focus();
 }
 
-// Search function
+// Element references
+const image = document.getElementById('cover'),
+    title = document.getElementById('music-title'),
+    artist = document.getElementById('music-artist'),
+    currentTimeEl = document.getElementById('current-time'),
+    durationEl = document.getElementById('duration'),
+    progress = document.getElementById('progress'),
+    playerProgress = document.getElementById('player-progress'),
+    prevBtn = document.getElementById('prev'),
+    nextBtn = document.getElementById('next'),
+    playBtn = document.getElementById('play'),
+    background = document.getElementById('bg-img'),
+    searchInput = document.getElementById('search'),
+    searchResults = document.getElementById('search-results'),
+    volumeSlider = document.getElementById('volume-slider'),
+    volumeIcon = document.querySelector('.volume-icon'),
+    queueContainer = document.getElementById('queue-container'),
+    upNextContainer = document.getElementById('up-next');
+
+// State management
+const music = new Audio();
+let songs = [];
+let musicIndex = 0;
+let isPlaying = false;
+let currentDuration = 0;
+let progressInterval = null;
+let queue = [];
+
+// Set initial volume
+music.volume = volumeSlider ? volumeSlider.value : 1;
+
+// Updated search functionality
 async function performSearch(query) {
     if (!query || query.trim() === '') {
         searchResults.innerHTML = '';
         return;
     }
-
+    
     searchResults.innerHTML = '<p class="loading">Searching...</p>';
 
     try {
@@ -83,48 +81,38 @@ async function performSearch(query) {
         
         if (results && results.length > 0) {
             results.forEach((song, index) => {
-                // Create a result item
                 const songElement = document.createElement('div');
                 songElement.classList.add('result-item');
                 
-                // Get appropriate artwork
-                const artworkUrl = song.album?.images?.[0]?.url || 'default-artwork.png';
+                // Check if album and images exist before accessing them
+                const imageUrl = song.album && song.album.images && song.album.images[0] 
+                    ? song.album.images[0].url 
+                    : 'images/default.jpg';
                 
-                // Create inner HTML structure
+                const artistName = song.artists && song.artists[0] 
+                    ? song.artists[0].name 
+                    : 'Unknown Artist';
+                
                 songElement.innerHTML = `
-                    <img src="${artworkUrl}" alt="${song.name}" onerror="this.src='default-artwork.png'">
+                    <img src="${imageUrl}" alt="${song.name}">
                     <div class="song-info">
                         <div class="song-title">${song.name}</div>
-                        <div class="song-artist">${song.artists?.[0]?.name || 'Unknown Artist'}</div>
+                        <div class="song-artist">${artistName}</div>
                     </div>
                     <div class="song-actions">
-                        <button class="play-now-btn" title="Play Now"><i class="fas fa-play"></i></button>
-                        <button class="add-queue-btn" title="Add to Queue"><i class="fas fa-list"></i></button>
+                        <button class="play-now">Play</button>
+                        <button class="add-to-queue">+ Queue</button>
                     </div>
                 `;
                 
                 // Add event listeners
-                const playNowBtn = songElement.querySelector('.play-now-btn');
-                const addQueueBtn = songElement.querySelector('.add-queue-btn');
-                
-                playNowBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    loadSong(index, results);
-                });
-                
-                addQueueBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    addToQueue(results[index]);
-                    showNotification(`"${results[index].name}" added to queue`);
-                });
-                
-                // Also allow clicking the whole item to play
-                songElement.addEventListener('click', () => loadSong(index, results));
+                songElement.querySelector('.play-now').addEventListener('click', () => loadSong(index, results));
+                songElement.querySelector('.add-to-queue').addEventListener('click', () => addToQueue(results[index]));
                 
                 searchResults.appendChild(songElement);
             });
         } else {
-            searchResults.innerHTML = '<p class="no-results">No results found.</p>';
+            searchResults.innerHTML = '<p>No results found.</p>';
         }
     } catch (error) {
         console.error("Search error:", error);
@@ -132,109 +120,85 @@ async function performSearch(query) {
     }
 }
 
-// Load song function
-async function loadSong(index, searchResults) {
-    try {
-        musicIndex = index;
-        songs = searchResults; // Update songs array with search results
-        currentSong = songs[musicIndex];
-        
-        // Update UI elements
-        title.innerText = currentSong.name;
-        artist.innerText = currentSong.artists[0].name;
-        
-        // Set cover image
-        const artworkUrl = currentSong.album?.images?.[0]?.url || 'default-artwork.png';
-        image.src = artworkUrl;
-        bgImage.src = artworkUrl;
-        
-        // Reset progress
-        progress.style.width = '0%';
-        currentTimeEl.textContent = '0:00';
-        
-        // Handle platform-specific playback
-        if (currentSong.platform === 'soundcloud') {
-            const streamUrl = await getSoundCloudStreamUrl(currentSong);
-            if (streamUrl) {
-                music.src = streamUrl;
-            } else {
-                showNotification('Failed to get playable stream', 'error');
-                return;
-            }
-        } else {
-            // For Spotify
-            if (!currentSong.preview_url) {
-                showNotification('Preview not available for this track', 'warning');
-                music.src = ''; // Clear the source
-                durationEl.textContent = '0:00';
-            } else {
-                music.src = currentSong.preview_url;
-            }
-        }
-        
-        // Wait for the audio to be loaded
-        music.addEventListener('loadeddata', () => {
-            durationEl.textContent = formatTime(music.duration);
-        });
-        
-        // Hide search results
-        searchResults.innerHTML = '';
-        
-        // Update queue display
-        updateQueueDisplay();
-        
-        // Start playback if we have a valid source
-        if (music.src) {
-            playMusic();
-        }
-    } catch (error) {
-        console.error('Error loading song:', error);
-        showNotification('Failed to load song', 'error');
-    }
-}
+// Load song directly
+function loadSong(index, searchResults) {
+    musicIndex = index;
+    songs = searchResults; // Update songs array with search results
+    const song = songs[musicIndex];
 
-// Play music function
-function playMusic() {
-    if (!music.src) {
-        showNotification('No audio source available', 'warning');
+    if (!song) {
+        console.error("Invalid song object");
         return;
     }
+
+    // Check if preview_url exists
+    if (!song.preview_url) {
+        console.error("No preview URL available for this song");
+        displayErrorMessage("No preview available for this song");
+        return;
+    }
+
+    music.src = song.preview_url;
     
-    isPlaying = true;
-    playBtn.classList.replace('fa-play', 'fa-pause');
-    playBtn.title = 'Pause';
-    image.classList.add('active');
+    // Check if album and images exist before accessing them
+    if (song.album && song.album.images && song.album.images[0]) {
+        image.src = song.album.images[0].url;
+        background.src = song.album.images[0].url;
+    } else {
+        image.src = 'images/default.jpg';
+        background.src = 'images/default.jpg';
+    }
     
-    // Play and start tracking progress
-    music.play().catch(error => {
-        console.error('Play error:', error);
-        showNotification('Playback failed', 'error');
-        pauseMusic();
+    title.innerText = song.name || 'Unknown Title';
+    artist.innerText = song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist';
+
+    music.addEventListener('loadeddata', () => {
+        currentDuration = music.duration;
+        durationEl.textContent = formatTime(currentDuration);
     });
     
+    updateQueueDisplay();
+    playMusic();
+}
+
+// Display error message
+function displayErrorMessage(message) {
+    const errorElement = document.createElement('div');
+    errorElement.className = 'error-message';
+    errorElement.textContent = message;
+    
+    document.querySelector('.container').appendChild(errorElement);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        errorElement.remove();
+    }, 3000);
+}
+
+// Play Music
+function playMusic() {
+    isPlaying = true;
+    playBtn.classList.replace('fa-play', 'fa-pause');
+    image.classList.add('active');
+    music.play().catch(error => {
+        console.error("Playback error:", error);
+        displayErrorMessage("Unable to play this track");
+        pauseMusic();
+    });
     startProgressInterval();
 }
 
-// Pause music function
+// Pause Music
 function pauseMusic() {
     isPlaying = false;
     playBtn.classList.replace('fa-pause', 'fa-play');
-    playBtn.title = 'Play';
     image.classList.remove('active');
     music.pause();
     clearInterval(progressInterval);
 }
 
-// Previous song function
+// Previous Song
 function prevSong() {
-    if (music.currentTime > 5) {
-        // If more than 5 seconds have passed, restart the current song
-        music.currentTime = 0;
-        return;
-    }
-    
-    if (songs.length === 0) return;
-    
     musicIndex--;
     if (musicIndex < 0) {
         musicIndex = songs.length - 1;
@@ -242,51 +206,23 @@ function prevSong() {
     loadSong(musicIndex, songs);
 }
 
-// Play next song from queue or playlist
-function playNextSong() {
+// Next Song with improved queue handling
+function nextSong() {
     if (queue.length > 0) {
         // Play the next song from the queue
-        const nextSong = queue.shift(); // Remove from queue
-        currentSong = nextSong;
+        const nextSongFromQueue = queue.shift();
         
-        // Find if the song exists in our search results
-        const songIndex = songs.findIndex(s => s.id === nextSong.id);
-        if (songIndex !== -1) {
-            musicIndex = songIndex;
+        // Find this song in the songs array if it exists, or add it
+        let songIndex = songs.findIndex(s => s.id === nextSongFromQueue.id);
+        if (songIndex === -1) {
+            songs.push(nextSongFromQueue);
+            songIndex = songs.length - 1;
         }
         
-        // Update UI
-        title.innerText = nextSong.name;
-        artist.innerText = nextSong.artists[0].name;
-        
-        // Set images
-        const artworkUrl = nextSong.album?.images?.[0]?.url || 'default-artwork.png';
-        image.src = artworkUrl;
-        bgImage.src = artworkUrl;
-        
-        // Handle platform-specific playback
-        if (nextSong.platform === 'soundcloud') {
-            getSoundCloudStreamUrl(nextSong).then(streamUrl => {
-                if (streamUrl) {
-                    music.src = streamUrl;
-                    playMusic();
-                } else {
-                    showNotification('Failed to get playable stream', 'error');
-                    playNextSong(); // Skip to next
-                }
-            });
-        } else {
-            // For Spotify
-            if (!nextSong.preview_url) {
-                showNotification('Preview not available, skipping', 'warning');
-                playNextSong(); // Recursively try next song
-                return;
-            }
-            music.src = nextSong.preview_url;
-            playMusic();
-        }
-    } else if (songs.length > 0) {
-        // Play next song from playlist
+        musicIndex = songIndex;
+        loadSong(musicIndex, songs);
+    } else {
+        // If no songs in queue, play next song in the original list
         musicIndex++;
         if (musicIndex >= songs.length) {
             musicIndex = 0;
@@ -297,15 +233,40 @@ function playNextSong() {
     updateQueueDisplay();
 }
 
-// Add song to queue
+// Add a song to the queue
 function addToQueue(song) {
+    if (!song) {
+        console.error("Cannot add invalid song to queue");
+        return;
+    }
+    
     queue.push(song);
     updateQueueDisplay();
+    
+    // Show confirmation message
+    const message = document.createElement('div');
+    message.className = 'queue-notification';
+    message.textContent = `Added "${song.name}" to queue`;
+    document.body.appendChild(message);
+    
+    setTimeout(() => {
+        message.remove();
+    }, 2000);
+}
+
+// Remove a song from the queue
+function removeFromQueue(index) {
+    if (index >= 0 && index < queue.length) {
+        queue.splice(index, 1);
+        updateQueueDisplay();
+    }
 }
 
 // Update queue display
 function updateQueueDisplay() {
-    queueContainer.innerHTML = '';
+    if (!queueContainer) return;
+    
+    queueContainer.innerHTML = ''; // Clear the current display
 
     if (queue.length === 0) {
         queueContainer.innerHTML = '<div class="empty-queue">Queue is empty</div>';
@@ -314,208 +275,212 @@ function updateQueueDisplay() {
             const queueItem = document.createElement('div');
             queueItem.classList.add('queue-item');
             
-            const artworkUrl = song.album?.images?.[0]?.url || 'default-artwork.png';
-            
+            // Check if album and images exist before accessing them
+            const imageUrl = song.album && song.album.images && song.album.images[0] 
+                ? song.album.images[0].url 
+                : 'images/default.jpg';
+                
+            const artistName = song.artists && song.artists[0] 
+                ? song.artists[0].name 
+                : 'Unknown Artist';
+                
             queueItem.innerHTML = `
-                <img src="${artworkUrl}" alt="${song.name}" onerror="this.src='default-artwork.png'">
-                <div class="queue-info">
-                    <div class="queue-title">${song.name}</div>
-                    <div class="queue-artist">${song.artists[0].name}</div>
+                <img src="${imageUrl}" alt="${song.name}">
+                <div class="queue-item-info">
+                    <div class="queue-item-title">${song.name}</div>
+                    <div class="queue-item-artist">${artistName}</div>
                 </div>
-                <button class="remove-queue-btn" title="Remove from queue"><i class="fas fa-times"></i></button>
+                <button class="remove-queue-item" data-index="${index}">
+                    <i class="fas fa-times"></i>
+                </button>
             `;
             
-            // Add remove from queue functionality
-            const removeBtn = queueItem.querySelector('.remove-queue-btn');
-            removeBtn.addEventListener('click', () => {
-                queue.splice(index, 1);
-                updateQueueDisplay();
-                showNotification('Removed from queue');
-            });
-            
             queueContainer.appendChild(queueItem);
+            
+            // Add event listener to remove button
+            queueItem.querySelector('.remove-queue-item').addEventListener('click', (e) => {
+                const idx = parseInt(e.currentTarget.dataset.index);
+                removeFromQueue(idx);
+            });
         });
     }
     
-    // Update up next display
+    updateUpNextDisplay();
+}
+
+// Update "Up Next" display
+function updateUpNextDisplay() {
+    if (!upNextContainer) return;
+    
+    upNextContainer.innerHTML = '<h2>Up Next</h2>';
+    
     if (queue.length > 0) {
-        const nextSong = queue[0];
-        upNextContainer.innerHTML = `
-            <h2>Up Next</h2>
-            <div class="next-song-info">
-                <img src="${nextSong.album.images[0].url}" alt="${nextSong.name}" class="next-song-img" onerror="this.src='default-artwork.png'">
-                <div class="next-song-details">
-                    <div class="next-song-title">${nextSong.name}</div>
-                    <div class="next-song-artist">${nextSong.artists[0].name}</div>
-                </div>
+        const nextSong = queue[0]; // Get the first song in the queue
+        
+        // Check if album and images exist before accessing them
+        const imageUrl = nextSong.album && nextSong.album.images && nextSong.album.images[0] 
+            ? nextSong.album.images[0].url 
+            : 'images/default.jpg';
+            
+        const artistName = nextSong.artists && nextSong.artists[0] 
+            ? nextSong.artists[0].name 
+            : 'Unknown Artist';
+            
+        const nextItem = document.createElement('div');
+        nextItem.className = 'next-song-item';
+        nextItem.innerHTML = `
+            <img src="${imageUrl}" alt="${nextSong.name}" id="next-cover">
+            <div>
+                <div id="next-title">${nextSong.name}</div>
+                <div id="next-artist">${artistName}</div>
             </div>
         `;
+        
+        upNextContainer.appendChild(nextItem);
     } else {
-        upNextContainer.innerHTML = '<h2>Up Next</h2><div class="empty-next">Queue is empty</div>';
+        upNextContainer.innerHTML += '<div class="empty-next">No songs in queue</div>';
     }
 }
 
-// Start progress interval
-function startProgressInterval() {
-    clearInterval(progressInterval); // Clear existing interval
-    progressInterval = setInterval(() => {
-        if (isPlaying && music.duration) {
-            updateProgress();
-        }
-    }, 1000);
+// Format time in minutes and seconds
+function formatTime(time) {
+    if (isNaN(time) || time === Infinity) return "00:00";
+    
+    let minutes = Math.floor(time / 60);
+    minutes = (minutes < 10) ? `0${minutes}` : minutes;
+    let seconds = Math.floor(time % 60);
+    seconds = (seconds < 10) ? `0${seconds}` : seconds;
+    return `${minutes}:${seconds}`;
 }
 
-// Update progress display
+// Update progress bar as the song plays
 function updateProgress() {
-    const currentTime = music.currentTime;
-    const duration = music.duration || 0;
-    
-    if (duration > 0) {
+    if (isPlaying && !music.paused) {
+        const currentTime = music.currentTime;
+        const duration = music.duration || 0;
+        
+        if (isNaN(duration) || duration === 0) return;
+        
         const progressPercent = (currentTime / duration) * 100;
         progress.style.width = `${progressPercent}%`;
         currentTimeEl.textContent = formatTime(currentTime);
         
-        // Auto play next song when current one ends
+        // Auto-play next song when this one ends
         if (currentTime >= duration - 0.5) {
-            playNextSong();
+            nextSong();
         }
     }
 }
 
-// Set progress when clicking on progress bar
+// Set progress bar
 function setProgress(e) {
     const width = playerProgress.clientWidth;
     const clickX = e.offsetX;
     const duration = music.duration;
 
-    if (duration) {
-        music.currentTime = (clickX / width) * duration;
-        updateProgress();
-    }
+    if (isNaN(duration) || duration === 0) return;
+    
+    music.currentTime = (clickX / width) * duration;
+    updateProgress();
 }
 
-// Format time helper (converts seconds to MM:SS format)
-function formatTime(time) {
-    if (isNaN(time) || time === Infinity) return '0:00';
-    
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-}
-
-// Show notification
-function showNotification(message, type = 'info') {
-    // Create notification element if it doesn't exist
-    let notification = document.getElementById('notification');
-    if (!notification) {
-        notification = document.createElement('div');
-        notification.id = 'notification';
-        document.body.appendChild(notification);
-    }
-    
-    // Set content and style based on type
-    notification.textContent = message;
-    notification.className = `notification ${type}`;
-    
-    // Show notification
-    notification.classList.add('show');
-    
-    // Hide after 3 seconds
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
+// Start updating the progress bar every second
+function startProgressInterval() {
+    clearInterval(progressInterval); // Clear any existing interval first
+    progressInterval = setInterval(updateProgress, 1000);
 }
 
 // Event Listeners
 playBtn.addEventListener('click', () => isPlaying ? pauseMusic() : playMusic());
 prevBtn.addEventListener('click', prevSong);
-nextBtn.addEventListener('click', playNextSong);
+nextBtn.addEventListener('click', nextSong);
 playerProgress.addEventListener('click', setProgress);
-music.addEventListener('ended', playNextSong);
-
-// Search input handler with debounce
-let searchTimeout;
-searchInput.addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        performSearch(e.target.value);
-    }, 500); // 500ms debounce
-});
+music.addEventListener('ended', nextSong);
 
 // Volume control
 volumeSlider.addEventListener('input', (e) => {
-    const volume = parseFloat(e.target.value);
-    music.volume = volume;
-    localStorage.setItem('playerVolume', volume);
+    music.volume = e.target.value;
     
-    // Update volume icon
-    const volumeIcon = document.querySelector('.volume-icon');
-    if (volume === 0) {
-        volumeIcon.classList.remove('fa-volume-up', 'fa-volume-down');
-        volumeIcon.classList.add('fa-volume-mute');
-    } else if (volume < 0.5) {
-        volumeIcon.classList.remove('fa-volume-up', 'fa-volume-mute');
-        volumeIcon.classList.add('fa-volume-down');
+    // Update volume icon based on volume level
+    if (music.volume === 0) {
+        volumeIcon.className = 'fas fa-volume-mute volume-icon';
+    } else if (music.volume < 0.5) {
+        volumeIcon.className = 'fas fa-volume-down volume-icon';
     } else {
-        volumeIcon.classList.remove('fa-volume-down', 'fa-volume-mute');
-        volumeIcon.classList.add('fa-volume-up');
+        volumeIcon.className = 'fas fa-volume-up volume-icon';
     }
 });
 
-// Volume icon click to toggle mute
-document.querySelector('.volume-icon').addEventListener('click', () => {
+// Toggle mute when clicking the volume icon
+volumeIcon.addEventListener('click', () => {
     if (music.volume > 0) {
         // Store the current volume before muting
-        localStorage.setItem('previousVolume', music.volume);
+        volumeIcon.dataset.previousVolume = music.volume;
         music.volume = 0;
         volumeSlider.value = 0;
-        document.querySelector('.volume-icon').classList.remove('fa-volume-up', 'fa-volume-down');
-        document.querySelector('.volume-icon').classList.add('fa-volume-mute');
+        volumeIcon.className = 'fas fa-volume-mute volume-icon';
     } else {
-        // Restore previous volume
-        const previousVolume = parseFloat(localStorage.getItem('previousVolume') || 0.7);
-        music.volume = previousVolume;
-        volumeSlider.value = previousVolume;
-        
-        if (previousVolume < 0.5) {
-            document.querySelector('.volume-icon').classList.add('fa-volume-down');
-        } else {
-            document.querySelector('.volume-icon').classList.add('fa-volume-up');
-        }
-        document.querySelector('.volume-icon').classList.remove('fa-volume-mute');
+        // Restore previous volume or default to 0.5
+        music.volume = volumeIcon.dataset.previousVolume || 0.5;
+        volumeSlider.value = music.volume;
+        volumeIcon.className = music.volume < 0.5 ? 'fas fa-volume-down volume-icon' : 'fas fa-volume-up volume-icon';
     }
 });
 
-// Keyboard shortcuts
-document.addEventListener('keydown', (e) => {
-    if (e.target === searchInput) return; // Don't trigger shortcuts when typing in search
+// Search input event
+searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
     
-    switch (e.code) {
-        case 'Space':
-            e.preventDefault();
-            isPlaying ? pauseMusic() : playMusic();
-            break;
-        case 'ArrowRight':
-            playNextSong();
-            break;
-        case 'ArrowLeft':
-            prevSong();
-            break;
-        case 'ArrowUp':
-            // Increase volume
-            music.volume = Math.min(1, music.volume + 0.1);
-            volumeSlider.value = music.volume;
-            localStorage.setItem('playerVolume', music.volume);
-            break;
-        case 'ArrowDown':
-            // Decrease volume
-            music.volume = Math.max(0, music.volume - 0.1);
-            volumeSlider.value = music.volume;
-            localStorage.setItem('playerVolume', music.volume);
-            break;
+    // Clear previous timeout
+    if (window.searchTimeout) {
+        clearTimeout(window.searchTimeout);
+    }
+    
+    // Set a timeout to avoid too many requests
+    window.searchTimeout = setTimeout(() => {
+        performSearch(query);
+    }, 500);
+});
+
+// Clear search results when clicking outside
+document.addEventListener('click', (e) => {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.innerHTML = '';
     }
 });
 
 // Initialize
-window.switchMode = switchMode; // Expose function to global scope for HTML onclick
-switchMode('spotify'); // Start with Spotify mode
+function init() {
+    // Set defaults
+    image.src = 'images/default.jpg';
+    background.src = 'images/default.jpg';
+    title.innerText = 'Music Player';
+    artist.innerText = 'Choose a song to play';
+    
+    // Ensure the queue container is displayed properly at startup
+    updateQueueDisplay();
+    
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            isPlaying ? pauseMusic() : playMusic();
+        } else if (e.code === 'ArrowRight') {
+            nextSong();
+        } else if (e.code === 'ArrowLeft') {
+            prevSong();
+        }
+    });
+}
+
+// Initialize the player
+init();
+
+// Export for global access
+window.switchMode = switchMode;
+window.addToQueue = addToQueue;
+window.removeFromQueue = removeFromQueue;
+window.playMusic = playMusic;
+window.pauseMusic = pauseMusic;
+window.nextSong = nextSong;
+window.prevSong = prevSong;
