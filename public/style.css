@@ -13,7 +13,7 @@ body {
     align-items: center;
     justify-content: center;
     padding-top: 60px;
-    /* Updated padding */
+    background-color: #f5f5f5;
 }
 
 .background {
@@ -35,15 +35,12 @@ body {
     min-width: 50%;
     min-height: 50%;
     filter: blur(10px);
-    /* Reduced blur */
     -webkit-filter: blur(10px);
-    /* Reduced blur */
     transform: scale(1.1);
     transition: all 0.5s ease-in-out;
-    /* Added transition */
+    opacity: 0.7; /* Added opacity for better text visibility */
 }
 
-/* Replace existing search container styles with these updated ones */
 #search-container {
     position: fixed;
     top: 0;
@@ -53,8 +50,9 @@ body {
     align-items: center;
     justify-content: center;
     padding: 10px;
-    background-color: rgba(231, 231, 231, 0.8);
+    background-color: rgba(231, 231, 231, 0.9); /* Increased opacity */
     z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Added shadow for depth */
 }
 
 #mode-switch {
@@ -68,12 +66,20 @@ body {
     height: 30px;
     cursor: pointer;
     opacity: 0.6;
-    transition: opacity 0.3s ease;
+    transition: all 0.3s ease; /* Added all for smoother transition */
+    filter: grayscale(100%);
 }
 
-#mode-switch img:hover,
+#mode-switch img:hover {
+    opacity: 1;
+    filter: grayscale(0%);
+    transform: scale(1.1);
+}
+
 #mode-switch img.active {
     opacity: 1;
+    filter: grayscale(0%);
+    transform: scale(1.05);
 }
 
 #search {
@@ -84,6 +90,12 @@ body {
     font-size: 16px;
     outline: none;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+#search:focus {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    width: 320px; /* Subtle expansion when focused */
 }
 
 #platform-info {
@@ -112,7 +124,8 @@ body {
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
     transition: all 0.5s ease;
     margin-top: 20px;
-    /* Added margin */
+    position: relative; /* Added for absolute positioning of search results */
+    overflow: visible; /* Allow search results to overflow */
 }
 
 .container:hover {
@@ -134,8 +147,7 @@ body {
     width: 0;
     opacity: 0;
     box-shadow: 0 5px 30px 5px rgba(0, 0, 0, 0.5);
-    transition: opacity 0.5s ease-in-out;
-    /* Added transition */
+    transition: all 0.5s ease-in-out;
 }
 
 .player-img:hover img {
@@ -145,7 +157,6 @@ body {
 .player-img img.active {
     width: 100%;
     height: 100%;
-    transition: all 0.5s;
     opacity: 1;
 }
 
@@ -154,6 +165,11 @@ h2 {
     text-align: center;
     font-weight: 500;
     margin: 10px 0 0;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 20px;
 }
 
 h3 {
@@ -161,6 +177,11 @@ h3 {
     text-align: center;
     font-weight: 500;
     margin: 10px 0 0;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 20px;
 }
 
 .player-progress {
@@ -183,10 +204,11 @@ h3 {
 
 .music-duration {
     position: absolute;
-    width: 100%;
+    width: 90%;
     top: 10px;
     display: flex;
     justify-content: space-between;
+    left: 20px; /* Added positioning */
 }
 
 .player-controls {
@@ -194,9 +216,8 @@ h3 {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 20px 0;
+    margin: 30px 0 15px; /* Adjusted margin */
     width: 100%;
-    /* Added full width */
 }
 
 .player-controls i {
@@ -210,6 +231,7 @@ h3 {
 
 .player-controls i:hover {
     color: #333;
+    transform: scale(1.1);
 }
 
 .fa-solid {
@@ -231,7 +253,7 @@ h3 {
     top: 3px;
 }
 
-/* Update your volume control styles */
+/* Volume Control */
 .volume-control {
     display: flex;
     align-items: center;
@@ -241,8 +263,9 @@ h3 {
 }
 
 .volume-icon {
-    width: 24px;
-    height: 24px;
+    font-size: 18px; /* Fixed font size */
+    width: auto; /* Remove fixed width */
+    height: auto; /* Remove fixed height */
     color: #666;
     cursor: pointer;
     transition: color 0.3s ease;
@@ -289,38 +312,19 @@ h3 {
     background: #333;
 }
 
-/* Add animation for volume waves */
-@keyframes wave {
-    0% {
-        opacity: 0.3;
-    }
-
-    50% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0.3;
-    }
-}
-
-.volume-icon .wave-1 {
-    animation: wave 2s infinite;
-}
-
-.volume-icon .wave-2 {
-    animation: wave 2s infinite 0.5s;
-}
-
-/* Update search results positioning for new layout */
+/* Search Results */
 #search-results {
     position: absolute;
-    top: 100%;
+    top: 50px; /* Position below search bar */
     left: 50%;
     transform: translateX(-50%);
     width: 320px;
-    /* Match search width plus padding */
-    margin-top: 5px;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
 }
 
 #search-results .result-item {
@@ -328,6 +332,12 @@ h3 {
     cursor: pointer;
     display: flex;
     align-items: center;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s ease;
+}
+
+#search-results .result-item:last-child {
+    border-bottom: none;
 }
 
 #search-results .result-item img {
@@ -335,6 +345,29 @@ h3 {
     height: 50px;
     border-radius: 5px;
     margin-right: 10px;
+    object-fit: cover;
+}
+
+#search-results .song-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#search-results .song-info div:first-child {
+    font-weight: bold;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#search-results .song-info div:last-child {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #search-results .result-item:hover {
@@ -353,93 +386,90 @@ h3 {
     color: #ff4444;
 }
 
-.queue-container {
+/* Queue Styling */
+#up-next {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(231, 231, 231, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+    z-index: 900;
+}
+
+#up-next h2 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 18px;
+    text-align: left;
+}
+
+#queue-container {
     max-height: 200px;
     overflow-y: auto;
-    background-color: #f4f4f4;
     margin-top: 10px;
 }
 
 .queue-item {
     display: flex;
     align-items: center;
-    padding: 10px;
+    padding: 8px;
     border-bottom: 1px solid #ddd;
+    transition: background-color 0.2s ease;
+}
+
+.queue-item:last-child {
+    border-bottom: none;
+}
+
+.queue-item:hover {
+    background-color: #f0f0f0;
 }
 
 .queue-item img {
-    width: 50px;
-    height: 50px;
-    margin-right: 10px;
-}
-
-#up-next {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background-color: rgba(231, 231, 231, 0.8);
-    padding: 10px;
-    border-radius: 10px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    max-width: 200px;
-}
-
-#next-song {
-    display: flex;
-    align-items: center;
-}
-
-#next-cover {
-    width: 50px;
-    height: 50px;
-    object-fit: cover;
-    margin-right: 10px;
+    width: 40px;
+    height: 40px;
     border-radius: 5px;
-}
-
-#next-title,
-#next-artist {
-    margin: 0;
-    font-size: 14px;
-}
-
-#next-artist {
-    color: #666;
-}
-
-/* Mode switch and platform styles */
-#mode-switch img {
-    width: 30px;
-    height: 30px;
-    cursor: pointer;
-    transition: transform 0.3s ease;
-    filter: grayscale(100%);
-    opacity: 0.7;
-}
-
-#mode-switch img:hover {
-    transform: scale(1.1);
-    filter: grayscale(0%);
-    opacity: 1;
-}
-
-#header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-#platform-logo {
-    width: 20px;
-    height: 20px;
+    margin-right: 10px;
+    object-fit: cover;
 }
 
 /* Platform-specific search bar styles */
 #search.spotify {
-    background-color: rgba(0, 255, 0, 0.2);
+    background-color: rgba(30, 215, 96, 0.1); /* Spotify green */
+    border: 1px solid rgba(30, 215, 96, 0.3);
 }
 
 #search.soundcloud {
-    background-color: rgba(255, 165, 0, 0.2);
+    background-color: rgba(255, 85, 0, 0.1); /* SoundCloud orange */
+    border: 1px solid rgba(255, 85, 0, 0.3);
+}
+
+/* Responsive styles */
+@media (max-width: 600px) {
+    .container {
+        width: 90%;
+        height: auto;
+        padding-bottom: 20px;
+    }
+    
+    .player-img {
+        width: 80%;
+        height: auto;
+        aspect-ratio: 1/1;
+        left: 10%;
+    }
+    
+    #search {
+        width: 60%;
+    }
+    
+    #up-next {
+        max-width: 80%;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 10px;
+    }
 }

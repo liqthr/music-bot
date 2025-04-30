@@ -1,8 +1,6 @@
 // spotifySearch.js
 
 import config from './config.js';
-// Remove node-fetch import because the native fetch is available in the browser
-// import fetch from 'node-fetch';
 
 const baseUrl = config.baseUrl || 'http://localhost:3000';
 
@@ -11,12 +9,13 @@ console.log('SpotifySearch module loaded');
 let accessToken = '';
 let tokenExpiration = 0;
 
+/**
+ * Get Spotify access token, either from cache or by making a new request
+ * @returns {Promise<string|null>} - The access token or null if failed
+ */
 async function getAccessToken() {
     console.log('getAccessToken called');
-    console.log('Current token:', accessToken);
-    console.log('Current expiration:', tokenExpiration);
-    console.log('Current time:', Date.now());
-
+    
     // Use the existing token if still valid
     if (accessToken && Date.now() < tokenExpiration) {
         console.log('Using existing valid token');
@@ -41,19 +40,16 @@ async function getAccessToken() {
         }
 
         const data = await response.json();
-        console.log('Received token data:', data);
-
+        
         if (!data.access_token) {
             throw new Error('No access token received');
         }
 
         accessToken = data.access_token;
-        // Set expiration to 90% of the provided lifetime
+        // Set expiration to 90% of the provided lifetime to ensure we refresh before expiration
         tokenExpiration = Date.now() + ((data.expires_in || 3600) * 900);
 
-        console.log('New token set:', accessToken.substring(0, 10) + '...');
-        console.log('New expiration:', tokenExpiration);
-
+        console.log('New token received and cached');
         return accessToken;
     } catch (error) {
         console.error('Detailed access token error:', error);
@@ -61,10 +57,15 @@ async function getAccessToken() {
     }
 }
 
+/**
+ * Search Spotify for tracks matching the query
+ * @param {string} query - The search query
+ * @returns {Promise<Array>} - Array of tracks matching the query
+ */
 async function searchSpotify(query) {
     console.log('searchSpotify called with query:', query);
 
-    if (!query) {
+    if (!query || query.trim() === '') {
         console.warn('Empty search query');
         return [];
     }
@@ -77,9 +78,7 @@ async function searchSpotify(query) {
             return [];
         }
 
-        console.log('Searching with token:', token.substring(0, 10) + '...');
-
-        const response = await fetch(`${baseUrl}/search?q=${encodeURIComponent(query)}`, {
+        const response = await fetch(`${baseUrl}/search?q=${encodeURIComponent(query.trim())}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Cache-Control': 'no-cache'
@@ -87,16 +86,19 @@ async function searchSpotify(query) {
         });
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Search failed:', errorText);
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
         const data = await response.json();
 
         if (!data.tracks || !data.tracks.items) {
-            console.warn('No tracks found', data);
+            console.warn('No tracks found in response', data);
             return [];
         }
 
+        // Format track data for consistency with other platforms
         return data.tracks.items.map(item => ({
             id: item.id,
             artists: item.artists,
@@ -104,7 +106,9 @@ async function searchSpotify(query) {
             album: {
                 images: item.album.images
             },
-            preview_url: item.preview_url
+            preview_url: item.preview_url,
+            platform: 'spotify', // Add platform identifier
+            external_url: item.external_urls?.spotify || ''
         }));
     } catch (error) {
         console.error('Spotify Search Error:', error);
@@ -112,5 +116,5 @@ async function searchSpotify(query) {
     }
 }
 
-// Use only ES module exports
+// Use ES module exports
 export { searchSpotify };

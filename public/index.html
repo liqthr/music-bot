@@ -21,12 +21,15 @@
                 alt="Spotify">
             <img src="soundcloud-logo.png" id="soundcloud-logo" onclick="switchMode('soundcloud')" alt="SoundCloud">
         </div>
-        <input type="text" id="search" placeholder="Search for songs...">
+        <input type="text" id="search" class="spotify" placeholder="Search for songs...">
         <div id="platform-info">
             <img id="platform-logo" src="spotify-logo.png" alt="Platform">
             <span id="platform-text">Spotify Search</span>
         </div>
     </div>
+    
+    <div id="search-results"></div>
+    
     <div class="container">
         <div class="player-img">
             <img src="images/default.jpg" alt="Cover Art" id="cover">
@@ -51,14 +54,14 @@
             <i class="fas fa-volume-up volume-icon"></i>
             <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1">
         </div>
-        <div id="search-results"></div>
     </div>
+    
     <!-- Up Next / Queue -->
     <div id="up-next">
         <h2>Up Next</h2>
-        <div id="queue-container">
-        </div>
+        <div id="queue-container"></div>
     </div>
+    
     <script type="module" src="index.js"></script>
 </body>
 
