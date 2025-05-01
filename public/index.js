@@ -60,7 +60,7 @@ let queue = [];
 // Set initial volume
 music.volume = volumeSlider ? volumeSlider.value : 1;
 
-// Updated performSearch function with better error handling and platform support
+// Updated performSearch function with improved error handling and platform support
 async function performSearch(query) {
     if (!query || query.trim() === '') {
         searchResults.innerHTML = '';
@@ -72,13 +72,37 @@ async function performSearch(query) {
     try {
         let results = [];
         let searchError = null;
+        let fallbackUsed = false;
         
         if (currentMode === 'spotify') {
             try {
                 results = await searchSpotify(query);
+                if (!results || results.length === 0) {
+                    console.log('No Spotify results found, trying SoundCloud as fallback...');
+                    try {
+                        const scResults = await searchSoundCloud(query);
+                        if (scResults && scResults.length > 0) {
+                            results = scResults;
+                            fallbackUsed = true;
+                        }
+                    } catch (scError) {
+                        console.error('SoundCloud fallback failed:', scError);
+                    }
+                }
             } catch (error) {
                 searchError = `Spotify search failed: ${error.message}`;
                 console.error(searchError);
+                
+                // Try SoundCloud as fallback
+                try {
+                    console.log('Spotify search failed, trying SoundCloud as fallback...');
+                    results = await searchSoundCloud(query);
+                    if (results && results.length > 0) {
+                        fallbackUsed = true;
+                    }
+                } catch (scError) {
+                    console.error('SoundCloud fallback also failed:', scError);
+                }
             }
         } else if (currentMode === 'soundcloud') {
             try {
@@ -87,9 +111,10 @@ async function performSearch(query) {
                 // If SoundCloud search returns nothing, fallback to Spotify silently
                 if (!results || results.length === 0) {
                     console.log('No SoundCloud results, trying Spotify as fallback...');
-                    results = await searchSpotify(query);
-                    if (results && results.length > 0) {
-                        searchResults.innerHTML = '<p class="notice">No SoundCloud results found. Showing Spotify results instead.</p>';
+                    const spotifyResults = await searchSpotify(query);
+                    if (spotifyResults && spotifyResults.length > 0) {
+                        results = spotifyResults;
+                        fallbackUsed = true;
                     }
                 }
             } catch (error) {
@@ -101,12 +126,25 @@ async function performSearch(query) {
                 try {
                     results = await searchSpotify(query);
                     if (results && results.length > 0) {
-                        searchResults.innerHTML = '<p class="notice">SoundCloud search failed. Showing Spotify results instead.</p>';
+                        fallbackUsed = true;
                     }
                 } catch (spotifyError) {
                     console.error('Spotify fallback also failed:', spotifyError);
                 }
             }
+        }
+
+        // Clear previous results
+        searchResults.innerHTML = '';
+        
+        // Show fallback notice if applicable
+        if (fallbackUsed) {
+            const fallbackNotice = document.createElement('p');
+            fallbackNotice.className = 'notice';
+            fallbackNotice.innerText = currentMode === 'spotify' 
+                ? 'Showing SoundCloud results instead.' 
+                : 'Showing Spotify results instead.';
+            searchResults.appendChild(fallbackNotice);
         }
 
         // Append search results
@@ -124,11 +162,17 @@ async function performSearch(query) {
                     ? song.artists[0].name 
                     : 'Unknown Artist';
                 
+                // Add platform indicator to results
+                const platformClass = song.platform || 'spotify';
+                
                 songElement.innerHTML = `
                     <img src="${imageUrl}" alt="${song.name}">
                     <div class="song-info">
                         <div class="song-title">${song.name || 'Unknown Title'}</div>
-                        <div class="song-artist">${artistName}</div>
+                        <div class="song-artist">
+                            ${artistName}
+                            <span class="platform-badge ${platformClass}">${platformClass}</span>
+                        </div>
                     </div>
                     <div class="song-actions">
                         <button class="play-now">Play</button>
@@ -143,7 +187,7 @@ async function performSearch(query) {
                 searchResults.appendChild(songElement);
             });
         } else if (searchError) {
-            // Show error message if neither primary nor fallback search worked
+            // Show error message if both primary and fallback search failed
             searchResults.innerHTML = `<p class="error">${searchError}</p>`;
         } else {
             searchResults.innerHTML = '<p>No results found.</p>';

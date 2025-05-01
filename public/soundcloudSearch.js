@@ -1,4 +1,4 @@
-// soundcloudSearch.js - Fixed for better error handling and compatibility
+// soundcloudSearch.js - Enhanced with better error handling and fallback mechanisms
 
 console.log('SoundCloudSearch module loaded');
 
@@ -17,17 +17,34 @@ export async function searchSoundCloud(query) {
     }
 
     try {
-        // Use a more reliable endpoint structure with better error handling
-        const response = await fetch(
+        // First attempt - standard endpoint
+        let response = await fetch(
             `${baseUrl}/soundcloud-search?q=${encodeURIComponent(query.trim())}`,
             {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache'
-                }
+                },
+                // Add timeout for better error handling
+                signal: AbortSignal.timeout(10000) // 10 second timeout
             }
         );
+
+        // If first attempt fails with 500, try alternative endpoint
+        if (!response.ok && response.status === 500) {
+            console.warn('Primary SoundCloud endpoint failed, trying fallback...');
+            response = await fetch(
+                `${baseUrl}/soundcloud-search-alt?q=${encodeURIComponent(query.trim())}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                }
+            );
+        }
 
         // Better error handling with detailed logging
         if (!response.ok) {
@@ -41,11 +58,22 @@ export async function searchSoundCloud(query) {
         }
 
         const data = await response.json();
-        console.log('SoundCloud search results count:', data.length);
+        console.log('SoundCloud search results count:', data.length || 'unknown format');
+
+        // Handle different response formats from SoundCloud API
+        let tracks = [];
+        if (Array.isArray(data)) {
+            tracks = data;
+        } else if (data.collection && Array.isArray(data.collection)) {
+            tracks = data.collection;
+        } else {
+            console.warn('Unexpected SoundCloud API response format:', data);
+            return [];
+        }
 
         // Map the data to a common format compatible with Spotify results
         // Handle potential missing fields more gracefully
-        const formattedTracks = data
+        const formattedTracks = tracks
             .filter(item => item && item.title)
             .map(item => ({
                 id: item.id || `sc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -59,8 +87,7 @@ export async function searchSoundCloud(query) {
                     }]
                 },
                 duration_ms: item.duration || 0,
-                // Important fix: Use the permalink_url for SoundCloud streams instead of stream_url
-                // The actual stream URL will be resolved by the server
+                // Use the permalink_url for SoundCloud streams
                 preview_url: `${baseUrl}/soundcloud-stream?url=${encodeURIComponent(item.permalink_url || item.uri)}`,
                 platform: 'soundcloud',
                 permalink_url: item.permalink_url || ''
@@ -69,6 +96,10 @@ export async function searchSoundCloud(query) {
         return formattedTracks;
     } catch (error) {
         console.error("SoundCloud Search Error:", error);
+        // Add more detailed error info for debugging
+        if (error.name === 'AbortError') {
+            console.error("SoundCloud search timed out");
+        }
         throw error; // Let the main search function handle the error for fallback
     }
 }
@@ -82,8 +113,9 @@ function getArtworkUrl(track) {
     if (!track) return null;
     
     // Try different artwork sources in order of preference
+    // Handle potential null values safely with optional chaining
     return (
-        // Try track artwork with higher resolution
+        // Try track artwork with higher resolution if available
         (track.artwork_url && track.artwork_url.replace('-large', '-t500x500')) ||
         // Original artwork URL
         track.artwork_url ||
