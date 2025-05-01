@@ -1,4 +1,5 @@
-// soundcloudSearch.js - Updated with proper error handling and modern SoundCloud API integration
+// soundcloudSearch.js - Fixed for better error handling and compatibility
+
 console.log('SoundCloudSearch module loaded');
 
 const baseUrl = window.location.origin || 'http://localhost:3000';
@@ -58,17 +59,17 @@ export async function searchSoundCloud(query) {
                     }]
                 },
                 duration_ms: item.duration || 0,
-                preview_url: getStreamUrl(item),
+                // Important fix: Use the permalink_url for SoundCloud streams instead of stream_url
+                // The actual stream URL will be resolved by the server
+                preview_url: `${baseUrl}/soundcloud-stream?url=${encodeURIComponent(item.permalink_url || item.uri)}`,
                 platform: 'soundcloud',
-                stream_url: getStreamUrl(item),
                 permalink_url: item.permalink_url || ''
             }));
 
         return formattedTracks;
     } catch (error) {
         console.error("SoundCloud Search Error:", error);
-        // Return empty array instead of rejecting to keep the UI functioning
-        return [];
+        throw error; // Let the main search function handle the error for fallback
     }
 }
 
@@ -93,54 +94,4 @@ function getArtworkUrl(track) {
         // Fallback
         '/images/default.jpg'
     );
-}
-
-/**
- * Get a proper stream URL from a SoundCloud track
- * @param {Object} track - SoundCloud track object
- * @returns {string|null} - Stream URL if available
- */
-function getStreamUrl(track) {
-    if (!track) return null;
-    
-    // SoundCloud API v2 may provide different property names for stream URLs
-    return track.stream_url || track.media?.transcodings?.[0]?.url || null;
-}
-
-/**
- * Get a playable stream URL with client ID
- * @param {Object} track - Track object with stream_url
- * @returns {Promise<string|null>} - Playable stream URL
- */
-export async function getSoundCloudStreamUrl(track) {
-    if (!track || (!track.stream_url && !track.permalink_url)) {
-        console.error('Invalid track or missing URLs');
-        return null;
-    }
-    
-    try {
-        // Use track permalink as fallback if stream_url is missing
-        const urlToResolve = track.stream_url || track.permalink_url;
-        
-        const response = await fetch(
-            `${baseUrl}/soundcloud-stream?url=${encodeURIComponent(urlToResolve)}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
-                }
-            }
-        );
-        
-        if (!response.ok) {
-            throw new Error(`Failed to resolve stream URL: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.stream_url;
-    } catch (error) {
-        console.error('Error resolving SoundCloud stream URL:', error);
-        return null;
-    }
 }

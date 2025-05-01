@@ -193,19 +193,9 @@ app.get('/youtube-video/:id', async (req, res) => {
   }
 });
 
-// SoundCloud client ID endpoint
-app.get('/soundcloud-client-id', (req, res) => {
-  const clientId = process.env.SOUNDCLOUD_CLIENT_ID;
-  
-  if (!clientId) {
-    logger.error('Missing SoundCloud client ID in environment variables');
-    return res.status(500).json({ error: 'Missing SoundCloud client ID' });
-  }
-  
-  res.json({ clientId });
-});
+// Updated SoundCloud endpoints for server.js
 
-// SoundCloud search endpoint - Updated to use v2 API
+// SoundCloud search endpoint - Updated to fix API connection issues
 app.get('/soundcloud-search', async (req, res) => {
   const query = req.query.q;
   const clientId = process.env.SOUNDCLOUD_CLIENT_ID;
@@ -222,16 +212,15 @@ app.get('/soundcloud-search', async (req, res) => {
   try {
     logger.info(`Searching SoundCloud with query: ${query}`);
     
-    // Updated to use the SoundCloud v2 API with error handling
+    // Use a more reliable SoundCloud API endpoint
     const response = await axios({
       method: 'GET',
-      url: 'https://api-v2.soundcloud.com/search',
+      url: 'https://api-v2.soundcloud.com/search/tracks',
       params: {
         q: query,
         client_id: clientId,
         limit: 10,
-        app_locale: 'en',
-        kind: 'tracks'
+        offset: 0
       },
       headers: {
         'Accept': 'application/json',
@@ -239,7 +228,6 @@ app.get('/soundcloud-search', async (req, res) => {
       }
     });
 
-    // The v2 API returns results in a different structure
     logger.info('SoundCloud search successful');
     
     if (response.data && response.data.collection) {
@@ -256,10 +244,6 @@ app.get('/soundcloud-search', async (req, res) => {
       status: error.response?.status
     });
     
-    if (error.response && error.response.status === 401) {
-      return res.status(401).json({ error: 'Invalid SoundCloud client ID' });
-    }
-    
     res.status(500).json({ 
       error: 'Failed to search SoundCloud tracks',
       message: error.message
@@ -267,7 +251,7 @@ app.get('/soundcloud-search', async (req, res) => {
   }
 });
 
-// SoundCloud stream URL resolver - Updated for v2 API
+// SoundCloud stream URL resolver - Fixed for v2 API
 app.get('/soundcloud-stream', async (req, res) => {
   const trackUrl = req.query.url;
   const clientId = process.env.SOUNDCLOUD_CLIENT_ID;
@@ -284,50 +268,44 @@ app.get('/soundcloud-stream', async (req, res) => {
   try {
     logger.info(`Resolving SoundCloud stream URL for: ${trackUrl}`);
     
-    // First try to resolve the track to get media info
-    let resolveUrl;
+    // First resolve the track URL to get track data
+    const resolveResponse = await axios.get(
+      `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(trackUrl)}&client_id=${clientId}`
+    );
     
-    // Check if this is a direct API URL or a permalink
-    if (trackUrl.includes('api-v2.soundcloud.com')) {
-      resolveUrl = `${trackUrl}?client_id=${clientId}`;
-    } else {
-      resolveUrl = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(trackUrl)}&client_id=${clientId}`;
+    const track = resolveResponse.data;
+    logger.info('SoundCloud track resolved successfully');
+
+    if (!track || !track.media || !track.media.transcodings) {
+      throw new Error('Invalid track data received from SoundCloud');
     }
     
-    const response = await axios.get(resolveUrl);
-    logger.info('SoundCloud track resolved');
+    // Find a progressive MP3 stream if available
+    const progressiveStream = track.media.transcodings.find(
+      t => t.format.protocol === 'progressive' && t.format.mime_type.includes('audio/mpeg')
+    );
     
-    // Get stream URL from transcodings (in v2 API)
-    let streamUrl = null;
+    // Or try to find an HLS stream as backup
+    const hlsStream = !progressiveStream ? 
+      track.media.transcodings.find(t => t.format.protocol === 'hls') : null;
     
-    if (response.data.media && response.data.media.transcodings) {
-      // Find an MP3 progressive stream if available
-      const progressiveStream = response.data.media.transcodings.find(
-        t => t.format.protocol === 'progressive' && t.format.mime_type.includes('audio/mpeg')
-      );
-      
-      if (progressiveStream) {
-        // Get the actual stream URL
-        const streamResponse = await axios.get(`${progressiveStream.url}?client_id=${clientId}`);
-        streamUrl = streamResponse.data.url;
-      }
+    const streamInfo = progressiveStream || hlsStream;
+    
+    if (!streamInfo) {
+      throw new Error('No suitable stream format found');
     }
     
-    // Fallback to other fields if no transcoding found
-    if (!streamUrl) {
-      streamUrl = response.data.stream_url || response.data.preview_url;
-      
-      // Append client ID if not already included
-      if (streamUrl && !streamUrl.includes('client_id')) {
-        streamUrl = `${streamUrl}${streamUrl.includes('?') ? '&' : '?'}client_id=${clientId}`;
-      }
+    // Get the actual audio URL from the transcoding URL
+    const streamResponse = await axios.get(
+      `${streamInfo.url}?client_id=${clientId}`
+    );
+    
+    if (!streamResponse.data || !streamResponse.data.url) {
+      throw new Error('Failed to get stream URL');
     }
     
-    if (streamUrl) {
-      res.json({ stream_url: streamUrl });
-    } else {
-      throw new Error('No stream URL found in track data');
-    }
+    res.json({ stream_url: streamResponse.data.url });
+    
   } catch (error) {
     logger.error('SoundCloud Stream Resolution Error:', {
       message: error.message,

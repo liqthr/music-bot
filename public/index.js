@@ -60,7 +60,7 @@ let queue = [];
 // Set initial volume
 music.volume = volumeSlider ? volumeSlider.value : 1;
 
-// Enhanced search functionality with fallback
+// Updated performSearch function with better error handling and platform support
 async function performSearch(query) {
     if (!query || query.trim() === '') {
         searchResults.innerHTML = '';
@@ -154,7 +154,7 @@ async function performSearch(query) {
     }
 }
 
-// Improved loadSong function with better error handling
+// Updated loadSong function to handle both Spotify and SoundCloud tracks
 function loadSong(index, searchResults) {
     if (!searchResults || !searchResults[index]) {
         console.error("Invalid song data");
@@ -190,6 +190,12 @@ function loadSong(index, searchResults) {
     }
 
     try {
+        // Reset the audio element before setting a new source
+        music.pause();
+        music.currentTime = 0;
+        music.src = '';
+        
+        // Set the new source
         music.src = song.preview_url;
         
         // Handle artwork safely
@@ -201,10 +207,18 @@ function loadSong(index, searchResults) {
             background.src = 'images/default.jpg';
         }
         
+        // Set track info
         title.innerText = song.name || 'Unknown Title';
         artist.innerText = song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist';
 
-        music.addEventListener('loadeddata', () => {
+        // Add platform indicator
+        const platformIndicator = document.createElement('span');
+        platformIndicator.className = `platform-indicator ${song.platform || 'spotify'}`;
+        platformIndicator.textContent = song.platform === 'soundcloud' ? 'SoundCloud' : 'Spotify';
+        artist.appendChild(platformIndicator);
+
+        // Set up duration once the metadata is loaded
+        music.addEventListener('loadedmetadata', () => {
             currentDuration = music.duration;
             durationEl.textContent = formatTime(currentDuration);
         });
@@ -217,30 +231,30 @@ function loadSong(index, searchResults) {
     }
 }
 
-// Display error message
-function displayErrorMessage(message) {
-    const errorElement = document.createElement('div');
-    errorElement.className = 'error-message';
-    errorElement.textContent = message;
-    
-    document.querySelector('.container').appendChild(errorElement);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        errorElement.remove();
-    }, 3000);
-}
-
-// Play Music
+// Enhanced playMusic function with better error handling
 function playMusic() {
     isPlaying = true;
     playBtn.classList.replace('fa-play', 'fa-pause');
     image.classList.add('active');
-    music.play().catch(error => {
-        console.error("Playback error:", error);
-        displayErrorMessage("Unable to play this track");
-        pauseMusic();
-    });
+    
+    // Play the audio with proper error handling
+    const playPromise = music.play();
+    
+    if (playPromise !== undefined) {
+        playPromise.catch(error => {
+            console.error("Playback error:", error);
+            
+            // Handle user interaction requirement for autoplay
+            if (error.name === 'NotAllowedError') {
+                displayErrorMessage("Playback requires user interaction - click Play again");
+            } else {
+                displayErrorMessage("Unable to play this track: " + error.message);
+            }
+            
+            pauseMusic();
+        });
+    }
+    
     startProgressInterval();
 }
 
