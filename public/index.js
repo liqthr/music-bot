@@ -60,7 +60,7 @@ let queue = [];
 // Set initial volume
 music.volume = volumeSlider ? volumeSlider.value : 1;
 
-// Updated search functionality
+// Enhanced search functionality with fallback
 async function performSearch(query) {
     if (!query || query.trim() === '') {
         searchResults.innerHTML = '';
@@ -71,20 +71,51 @@ async function performSearch(query) {
 
     try {
         let results = [];
+        let searchError = null;
+        
         if (currentMode === 'spotify') {
-            results = await searchSpotify(query);
+            try {
+                results = await searchSpotify(query);
+            } catch (error) {
+                searchError = `Spotify search failed: ${error.message}`;
+                console.error(searchError);
+            }
         } else if (currentMode === 'soundcloud') {
-            results = await searchSoundCloud(query);
+            try {
+                results = await searchSoundCloud(query);
+                
+                // If SoundCloud search returns nothing, fallback to Spotify silently
+                if (!results || results.length === 0) {
+                    console.log('No SoundCloud results, trying Spotify as fallback...');
+                    results = await searchSpotify(query);
+                    if (results && results.length > 0) {
+                        searchResults.innerHTML = '<p class="notice">No SoundCloud results found. Showing Spotify results instead.</p>';
+                    }
+                }
+            } catch (error) {
+                searchError = `SoundCloud search failed: ${error.message}`;
+                console.error(searchError);
+                
+                // Fallback to Spotify search if SoundCloud fails
+                console.log('SoundCloud search failed, trying Spotify as fallback...');
+                try {
+                    results = await searchSpotify(query);
+                    if (results && results.length > 0) {
+                        searchResults.innerHTML = '<p class="notice">SoundCloud search failed. Showing Spotify results instead.</p>';
+                    }
+                } catch (spotifyError) {
+                    console.error('Spotify fallback also failed:', spotifyError);
+                }
+            }
         }
 
-        searchResults.innerHTML = '';
-        
+        // Append search results
         if (results && results.length > 0) {
             results.forEach((song, index) => {
                 const songElement = document.createElement('div');
                 songElement.classList.add('result-item');
                 
-                // Check if album and images exist before accessing them
+                // Handle potential missing data more gracefully
                 const imageUrl = song.album && song.album.images && song.album.images[0] 
                     ? song.album.images[0].url 
                     : 'images/default.jpg';
@@ -96,7 +127,7 @@ async function performSearch(query) {
                 songElement.innerHTML = `
                     <img src="${imageUrl}" alt="${song.name}">
                     <div class="song-info">
-                        <div class="song-title">${song.name}</div>
+                        <div class="song-title">${song.name || 'Unknown Title'}</div>
                         <div class="song-artist">${artistName}</div>
                     </div>
                     <div class="song-actions">
@@ -111,6 +142,9 @@ async function performSearch(query) {
                 
                 searchResults.appendChild(songElement);
             });
+        } else if (searchError) {
+            // Show error message if neither primary nor fallback search worked
+            searchResults.innerHTML = `<p class="error">${searchError}</p>`;
         } else {
             searchResults.innerHTML = '<p>No results found.</p>';
         }
@@ -120,45 +154,67 @@ async function performSearch(query) {
     }
 }
 
-// Load song directly
+// Improved loadSong function with better error handling
 function loadSong(index, searchResults) {
+    if (!searchResults || !searchResults[index]) {
+        console.error("Invalid song data");
+        displayErrorMessage("Cannot play this song - invalid data");
+        return;
+    }
+
     musicIndex = index;
     songs = searchResults; // Update songs array with search results
     const song = songs[musicIndex];
 
-    if (!song) {
-        console.error("Invalid song object");
-        return;
-    }
-
     // Check if preview_url exists
     if (!song.preview_url) {
-        console.error("No preview URL available for this song");
+        console.warn("No preview URL available for this song");
         displayErrorMessage("No preview available for this song");
+        
+        // Try to find another playable song
+        let foundPlayable = false;
+        for (let i = 0; i < songs.length; i++) {
+            if (songs[i].preview_url) {
+                console.log(`Found playable alternative at index ${i}`);
+                loadSong(i, songs);
+                foundPlayable = true;
+                break;
+            }
+        }
+        
+        if (!foundPlayable) {
+            console.error("No playable songs found in results");
+        }
+        
         return;
     }
 
-    music.src = song.preview_url;
-    
-    // Check if album and images exist before accessing them
-    if (song.album && song.album.images && song.album.images[0]) {
-        image.src = song.album.images[0].url;
-        background.src = song.album.images[0].url;
-    } else {
-        image.src = 'images/default.jpg';
-        background.src = 'images/default.jpg';
-    }
-    
-    title.innerText = song.name || 'Unknown Title';
-    artist.innerText = song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist';
+    try {
+        music.src = song.preview_url;
+        
+        // Handle artwork safely
+        if (song.album && song.album.images && song.album.images[0]) {
+            image.src = song.album.images[0].url;
+            background.src = song.album.images[0].url;
+        } else {
+            image.src = 'images/default.jpg';
+            background.src = 'images/default.jpg';
+        }
+        
+        title.innerText = song.name || 'Unknown Title';
+        artist.innerText = song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist';
 
-    music.addEventListener('loadeddata', () => {
-        currentDuration = music.duration;
-        durationEl.textContent = formatTime(currentDuration);
-    });
-    
-    updateQueueDisplay();
-    playMusic();
+        music.addEventListener('loadeddata', () => {
+            currentDuration = music.duration;
+            durationEl.textContent = formatTime(currentDuration);
+        });
+        
+        updateQueueDisplay();
+        playMusic();
+    } catch (error) {
+        console.error("Error loading song:", error);
+        displayErrorMessage("Failed to load song");
+    }
 }
 
 // Display error message
