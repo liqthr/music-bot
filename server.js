@@ -23,7 +23,7 @@ const logger = winston.createLogger({
 });
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: './spotify.env' });
 
 const app = express();
 const port = process.env.PORT || 3000;
