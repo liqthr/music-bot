@@ -2,6 +2,9 @@ import config from './config.js';
 import { searchSpotify } from './spotifySearch.js';
 import { searchSoundCloud } from './soundcloudSearch.js';
 
+// Import the Spotify player functions
+import { playSong } from './spotifyPlayer.js';
+
 let currentMode = 'spotify';
 
 // Updated switchMode function with better platform handling
@@ -198,80 +201,83 @@ async function performSearch(query) {
     }
 }
 
-// Updated loadSong function to handle both Spotify and SoundCloud tracks
+// Update loadSong function
 function loadSong(index, searchResults) {
     if (!searchResults || !searchResults[index]) {
         console.error("Invalid song data");
-        displayErrorMessage("Cannot play this song - invalid data");
         return;
     }
 
-    musicIndex = index;
-    songs = searchResults; // Update songs array with search results
-    const song = songs[musicIndex];
+    const song = searchResults[index];
 
-    // Check if preview_url exists
-    if (!song.preview_url) {
-        console.warn("No preview URL available for this song");
-        displayErrorMessage("No preview available for this song");
-        
-        // Try to find another playable song
-        let foundPlayable = false;
-        for (let i = 0; i < songs.length; i++) {
-            if (songs[i].preview_url) {
-                console.log(`Found playable alternative at index ${i}`);
-                loadSong(i, songs);
-                foundPlayable = true;
-                break;
+    if (song.platform === 'spotify' && song.uri) {
+        // Use Spotify Web Playback SDK for Spotify tracks
+        playSong(song.uri);
+    } else {
+        // Use existing preview_url logic for non-Spotify tracks
+        // Check if preview_url exists
+        if (!song.preview_url) {
+            console.warn("No preview URL available for this song");
+            displayErrorMessage("No preview available for this song");
+            
+            // Try to find another playable song
+            let foundPlayable = false;
+            for (let i = 0; i < songs.length; i++) {
+                if (songs[i].preview_url) {
+                    console.log(`Found playable alternative at index ${i}`);
+                    loadSong(i, songs);
+                    foundPlayable = true;
+                    break;
+                }
             }
+            
+            if (!foundPlayable) {
+                console.error("No playable songs found in results");
+            }
+            
+            return;
         }
-        
-        if (!foundPlayable) {
-            console.error("No playable songs found in results");
+
+        try {
+            // Reset the audio element before setting a new source
+            music.pause();
+            music.currentTime = 0;
+            music.src = '';
+            
+            // Set the new source
+            music.src = song.preview_url;
+            
+            // Handle artwork safely
+            if (song.album && song.album.images && song.album.images[0]) {
+                image.src = song.album.images[0].url;
+                background.src = song.album.images[0].url;
+            } else {
+                image.src = 'images/default.jpg';
+                background.src = 'images/default.jpg';
+            }
+            
+            // Set track info
+            title.innerText = song.name || 'Unknown Title';
+            artist.innerText = song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist';
+
+            // Add platform indicator
+            const platformIndicator = document.createElement('span');
+            platformIndicator.className = `platform-indicator ${song.platform || 'spotify'}`;
+            platformIndicator.textContent = song.platform === 'soundcloud' ? 'SoundCloud' : 'Spotify';
+            artist.appendChild(platformIndicator);
+
+            // Set up duration once the metadata is loaded
+            music.addEventListener('loadedmetadata', () => {
+                currentDuration = music.duration;
+                durationEl.textContent = formatTime(currentDuration);
+            });
+            
+            updateQueueDisplay();
+            playMusic();
+        } catch (error) {
+            console.error("Error loading song:", error);
+            displayErrorMessage("Failed to load song");
         }
-        
-        return;
-    }
-
-    try {
-        // Reset the audio element before setting a new source
-        music.pause();
-        music.currentTime = 0;
-        music.src = '';
-        
-        // Set the new source
-        music.src = song.preview_url;
-        
-        // Handle artwork safely
-        if (song.album && song.album.images && song.album.images[0]) {
-            image.src = song.album.images[0].url;
-            background.src = song.album.images[0].url;
-        } else {
-            image.src = 'images/default.jpg';
-            background.src = 'images/default.jpg';
-        }
-        
-        // Set track info
-        title.innerText = song.name || 'Unknown Title';
-        artist.innerText = song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist';
-
-        // Add platform indicator
-        const platformIndicator = document.createElement('span');
-        platformIndicator.className = `platform-indicator ${song.platform || 'spotify'}`;
-        platformIndicator.textContent = song.platform === 'soundcloud' ? 'SoundCloud' : 'Spotify';
-        artist.appendChild(platformIndicator);
-
-        // Set up duration once the metadata is loaded
-        music.addEventListener('loadedmetadata', () => {
-            currentDuration = music.duration;
-            durationEl.textContent = formatTime(currentDuration);
-        });
-        
-        updateQueueDisplay();
-        playMusic();
-    } catch (error) {
-        console.error("Error loading song:", error);
-        displayErrorMessage("Failed to load song");
     }
 }
 

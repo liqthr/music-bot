@@ -7,6 +7,14 @@ const config = {
     baseUrl: 'http://localhost:3000',
     defaultArtwork: 'images/default.jpg',
     debounceTime: 500, // ms to wait before searching after typing
+    spotifyRedirectUri: 'http://localhost:3000/callback',
+    spotifyScopes: [
+        'streaming',
+        'user-read-email',
+        'user-read-private',
+        'user-read-playback-state',
+        'user-modify-playback-state'
+    ].join(' ')
   };
   
   /**
