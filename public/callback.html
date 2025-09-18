@@ -4,12 +4,19 @@
     <title>Authentication Callback</title>
     <script type="module">
         import { handleAuthCallback } from './auth.js';
+        
         window.onload = () => {
-            handleAuthCallback();
+            try {
+                handleAuthCallback();
+            } catch (error) {
+                console.error('Callback handling failed:', error);
+                window.location.href = '/?error=callback_failed';
+            }
         };
     </script>
 </head>
 <body>
     <p>Processing authentication...</p>
+    <p id="error-message" style="color: red;"></p>
 </body>
 </html>
