@@ -2,21 +2,29 @@
 <html>
 <head>
     <title>Authentication Callback</title>
+    <link rel="stylesheet" href="style.css">
     <script type="module">
         import { handleAuthCallback } from './auth.js';
         
         window.onload = () => {
+            const errorElement = document.getElementById('error-message');
             try {
                 handleAuthCallback();
             } catch (error) {
                 console.error('Callback handling failed:', error);
-                window.location.href = '/?error=callback_failed';
+                errorElement.textContent = 'Authentication failed. Redirecting...';
+                setTimeout(() => {
+                    window.location.href = '/?error=callback_failed';
+                }, 2000);
             }
         };
     </script>
 </head>
-<body>
-    <p>Processing authentication...</p>
-    <p id="error-message" style="color: red;"></p>
+<body class="callback-page">
+    <div class="callback-container">
+        <h1>Authenticating...</h1>
+        <p>Processing your Spotify login</p>
+        <p id="error-message" class="error-message"></p>
+    </div>
 </body>
 </html>

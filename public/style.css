@@ -530,6 +530,27 @@ h3 {
     font-style: italic;
   }
 
+.callback-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #1a1a1a;
+    color: white;
+}
+
+.callback-container {
+    text-align: center;
+    padding: 2rem;
+    border-radius: 8px;
+    background-color: #282828;
+}
+
+.error-message {
+    color: #ff5555;
+    margin-top: 1rem;
+}
+
 /* Responsive styles */
 @media (max-width: 600px) {
     .container {
