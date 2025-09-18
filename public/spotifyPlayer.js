@@ -3,56 +3,57 @@ import config from './config.js';
 let player;
 let deviceId;
 
-export function initializePlayer() {
-    window.onSpotifyWebPlaybackSDKReady = () => {
-        const token = localStorage.getItem('spotify_access_token');
-        
-        if (!token) {
-            console.error('No access token found');
-            return;
-        }
+window.onSpotifyWebPlaybackSDKReady = () => {
+    const token = localStorage.getItem('spotify_access_token');
+    if (!token) {
+        console.error('No access token available');
+        return;
+    }
 
-        player = new Spotify.Player({
-            name: 'Web Music Player',
-            getOAuthToken: cb => { cb(token); },
-            volume: 0.5
-        });
+    player = new Spotify.Player({
+        name: 'Web Music Player',
+        getOAuthToken: cb => { cb(token); },
+        volume: 0.5
+    });
 
-        // Error handling
-        player.addListener('initialization_error', ({ message }) => {
-            console.error('Failed to initialize:', message);
-        });
+    // Error handling
+    player.addListener('initialization_error', ({ message }) => {
+        console.error('Failed to initialize:', message);
+    });
 
-        player.addListener('authentication_error', ({ message }) => {
-            console.error('Failed to authenticate:', message);
-            // Redirect to login if token is invalid
-            window.location.href = '/login.html';
-        });
+    player.addListener('authentication_error', ({ message }) => {
+        console.error('Failed to authenticate:', message);
+        localStorage.removeItem('spotify_access_token');
+        window.location.href = '/';
+    });
 
-        player.addListener('account_error', ({ message }) => {
-            console.error('Failed to validate Spotify account:', message);
-        });
+    player.addListener('account_error', ({ message }) => {
+        console.error('Failed to validate Spotify account:', message);
+    });
 
-        player.addListener('playback_error', ({ message }) => {
-            console.error('Failed to perform playback:', message);
-        });
+    player.addListener('playback_error', ({ message }) => {
+        console.error('Failed to perform playback:', message);
+    });
 
-        // Ready
-        player.addListener('ready', ({ device_id }) => {
-            console.log('Ready with Device ID:', device_id);
-            deviceId = device_id;
-            // Transfer playback to this device
-            transferPlayback(device_id);
-        });
+    // Ready
+    player.addListener('ready', ({ device_id }) => {
+        console.log('Ready with Device ID:', device_id);
+        deviceId = device_id;
+        // Transfer playback to this device
+        transferPlayback(device_id);
+    });
 
-        // Not Ready
-        player.addListener('not_ready', ({ device_id }) => {
-            console.log('Device ID has gone offline:', device_id);
-        });
+    // Connect to the player
+    player.connect();
+};
 
-        // Connect to the player!
-        player.connect();
-    };
+// Connect script in your HTML
+export function initializeSpotifyPlayer() {
+    if (!window.Spotify) {
+        const script = document.createElement('script');
+        script.src = 'https://sdk.scdn.co/spotify-player.js';
+        document.head.appendChild(script);
+    }
 }
 
 export async function transferPlayback(deviceId) {
