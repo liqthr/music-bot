@@ -23,7 +23,20 @@ const logger = winston.createLogger({
 });
 
 // Load environment variables
-dotenv.config({ path: './spotify.env' });
+dotenv.config();
+
+// Validate environment variables
+const requiredEnvVars = [
+    'SPOTIFY_CLIENT_ID',
+    'SPOTIFY_CLIENT_SECRET',
+    'YOUTUBE_API_KEY'
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+    console.error('Missing required environment variables:', missingEnvVars);
+    process.exit(1);
+}
 
 const app = express();
 const port = process.env.PORT || 3000;

@@ -13,5 +13,8 @@ export function handleAuthCallback() {
     if (accessToken) {
         localStorage.setItem('spotify_access_token', accessToken);
         window.location.href = '/'; // Redirect to main page
+    } else {
+        console.error('No access token received');
+        window.location.href = '/'; // Redirect to main page
     }
 }

@@ -2,12 +2,14 @@
 <html>
 <head>
     <title>Authentication Callback</title>
+    <script type="module">
+        import { handleAuthCallback } from './auth.js';
+        window.onload = () => {
+            handleAuthCallback();
+        };
+    </script>
 </head>
 <body>
     <p>Processing authentication...</p>
-    <script type="module">
-        import { handleAuthCallback } from './auth.js';
-        handleAuthCallback();
-    </script>
 </body>
 </html>
