@@ -65,38 +65,48 @@ export async function transferPlayback(deviceId) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                device_ids: [deviceId],           device_ids: [deviceId],
-                play: false,               play: false,
-            }),            }),
+                device_ids: [deviceId],
+                play: false,
+            }),
         });
     } catch (error) {
-        console.error('Error transferring playback:', error);ansferring playback:', error);
+        console.error('Error transferring playback:', error);
     }
 }
 
 export async function playSong(uri) {
-    if (!player || !deviceId) {r || !deviceId) {
-        console.error('Player not ready');        console.error('Player not ready');
+    if (!player || !deviceId) {
+        console.error('Player not ready');
         return;
     }
 
     try {
-        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {iceId}`, {
-            method: 'PUT',        method: 'PUT',
+        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+            method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('spotify_access_token')}`,_token')}`,
+                'Authorization': `Bearer ${localStorage.getItem('spotify_access_token')}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({           body: JSON.stringify({
-                uris: [uri]                uris: [uri]
+            body: JSON.stringify({
+                uris: [uri]
             })
         });
     } catch (error) {
-        console.error('Error playing track:', error);.error('Error playing track:', error);
+        console.error('Error playing track:', error);
     }
-}}
+}
 
-// Update player stateeId };function updatePlayerState(state) {    // Update UI based on state    const {        position,        duration,        track_window: { current_track }    } = state;    // Update your existing player UI    document.getElementById('music-title').textContent = current_track.name;    document.getElementById('music-artist').textContent = current_track.artists[0].name;
+// Update player state
+function updatePlayerState(state) {
+    // Update UI based on state
+    const {
+        position,
+        duration,
+        track_window: { current_track }
+    } = state;
+    // Update your existing player UI
+    document.getElementById('music-title').textContent = current_track.name;
+    document.getElementById('music-artist').textContent = current_track.artists[0].name;
     document.getElementById('cover').src = current_track.album.images[0].url;
     document.getElementById('bg-img').src = current_track.album.images[0].url;
     
