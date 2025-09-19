@@ -1,18 +1,19 @@
 // config.js - Client-side configuration
 
 const config = {
-    spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '',
-    spotifyClientSecret: process.env.SPOTIFY_CLIENT_SECRET || '',
-    spotifyRedirectUri: process.env.NODE_ENV === 'production' 
-        ? 'https://music-bot-brown-nine.vercel.app/callback.html'
-        : 'http://localhost:3000/callback.html',
+    spotifyClientId: '', // Will be fetched from server
+    spotifyClientSecret: '', // Not needed on client side
+    spotifyRedirectUri: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? `${window.location.protocol}//${window.location.host}/callback.html`
+        : 'https://music-bot-brown-nine.vercel.app/callback.html',
     spotifyScopes: [
         'streaming',
         'user-read-email',
         'user-read-private',
         'user-read-playback-state',
         'user-modify-playback-state'
-    ].join(' ')
+    ].join(' '),
+    debounceTime: 500
 };
 
 /**
