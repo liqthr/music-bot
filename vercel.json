@@ -20,12 +20,31 @@
       "dest": "/server.js"
     },
     {
-      "src": "/(auth|search|health|player)",
+      "src": "/auth",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/spotify-search",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/soundcloud-search",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/soundcloud-search-alt",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/health",
       "dest": "/server.js"
     },
     {
       "src": "/(.*)",
       "dest": "/public/$1"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
