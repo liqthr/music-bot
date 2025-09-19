@@ -107,14 +107,8 @@ async function performSearch(query) {
             try {
                 // Use development search if available
                 if (DEV_CONFIG && DEV_CONFIG.DEVELOPMENT_MODE && devSearchSpotify) {
-                    const token = localStorage.getItem('spotify_access_token');
-                    if (token) {
-                        console.log('🔧 Using development Spotify search');
-                        results = await devSearchSpotify(query, token);
-                    } else {
-                        console.log('🔧 No token, using fallback tracks');
-                        results = getFallbackTracks(query);
-                    }
+                    console.log('🔧 Using development Spotify search with Client Credentials');
+                    results = await devSearchSpotify(query, DEV_CONFIG);
                 } else {
                     results = await searchSpotify(query);
                 }
@@ -765,10 +759,10 @@ function init() {
 // Initialize Spotify authentication
 function initSpotifyAuth() {
     // Check for development mode
-    if (DEV_CONFIG && DEV_CONFIG.DEVELOPMENT_MODE && DEV_CONFIG.SPOTIFY_ACCESS_TOKEN !== 'YOUR_SPOTIFY_TOKEN_HERE') {
-        console.log('🔧 Development mode enabled - using hardcoded token');
-        localStorage.setItem('spotify_access_token', DEV_CONFIG.SPOTIFY_ACCESS_TOKEN);
-        localStorage.setItem('spotify_token_expires_at', String(Date.now() + 3600000)); // 1 hour from now
+    if (DEV_CONFIG && DEV_CONFIG.DEVELOPMENT_MODE && DEV_CONFIG.USE_CLIENT_CREDENTIALS) {
+        console.log('🔧 Development mode enabled - using Client Credentials flow');
+        // For Client Credentials flow, we don't need to store user tokens
+        // Search will work, but playback will be limited to previews
         updateAuthUI();
         return;
     }
@@ -806,6 +800,15 @@ function initSpotifyAuth() {
 // Update authentication UI
 function updateAuthUI() {
     if (!spotifyLoginBtn || !spotifyStatus) return;
+    
+    // Check for development mode
+    if (DEV_CONFIG && DEV_CONFIG.DEVELOPMENT_MODE && DEV_CONFIG.USE_CLIENT_CREDENTIALS) {
+        spotifyLoginBtn.innerHTML = '<i class="fas fa-cog"></i> Development Mode';
+        spotifyLoginBtn.className = 'auth-button logged-in';
+        spotifyStatus.innerHTML = '<span class="success">✓ Search enabled - Preview playback only</span>';
+        spotifyStatus.className = 'auth-status success';
+        return;
+    }
     
     const isAuthenticated = checkAuth();
     const playerReady = isPlayerReady();

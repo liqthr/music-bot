@@ -1,36 +1,37 @@
 # 🔧 Development Setup for Coursework
 
-This guide will help you set up the music bot for local development without needing the login flow.
+This guide will help you set up the music bot for local development without needing the complex login flow.
 
-## Quick Setup Steps
+## Quick Setup Steps (2 minutes!)
 
-### 1. Get Your Spotify Token
+### 1. Get Your Spotify App Credentials
 
-1. Go to [Spotify Web API Console](https://developer.spotify.com/console/get-search-item/)
-2. Click **"Get Token"**
-3. Select these scopes (check all boxes):
-   - ✅ `streaming`
-   - ✅ `user-read-email`
-   - ✅ `user-read-private`
-   - ✅ `user-read-playback-state`
-   - ✅ `user-modify-playback-state`
-   - ✅ `user-read-currently-playing`
-4. Click **"Request Token"**
-5. Copy the generated token (starts with `BQA...`)
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. **Sign in** with your Spotify account
+3. **Click "Create App"** (if you don't have one) or click on your existing app
+4. Fill in the form:
+   - **App Name**: "Music Bot Coursework" (or any name)
+   - **App Description**: "Music player for coursework"
+   - **Redirect URI**: `http://localhost:3000/callback`
+   - Check the boxes and click **"Save"**
+5. On your app dashboard, you'll see:
+   - **Client ID** (visible)
+   - **Client Secret** (click "Show Client Secret" to reveal)
 
 ### 2. Configure Development Mode
 
 1. Open `public/dev-config.js`
-2. Replace `YOUR_SPOTIFY_TOKEN_HERE` with your token from step 1
-3. Replace `YOUR_CLIENT_ID_HERE` with your Spotify Client ID
+2. Replace `PASTE_YOUR_CLIENT_ID_HERE` with your Client ID
+3. Replace `PASTE_YOUR_CLIENT_SECRET_HERE` with your Client Secret
 4. Save the file
 
 Example:
 ```javascript
 export const DEV_CONFIG = {
     DEVELOPMENT_MODE: true,
-    SPOTIFY_ACCESS_TOKEN: 'BQAbc123def456...', // Your actual token
-    SPOTIFY_CLIENT_ID: '1234567890abcdef',     // Your actual client ID
+    SPOTIFY_CLIENT_ID: '1234567890abcdef1234567890abcdef',     // Your actual client ID
+    SPOTIFY_CLIENT_SECRET: 'abcdef1234567890abcdef1234567890', // Your actual client secret
+    USE_CLIENT_CREDENTIALS: true,
     // ... rest stays the same
 };
 ```

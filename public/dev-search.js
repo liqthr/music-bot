@@ -1,13 +1,40 @@
 // Development search functions - direct API calls without server
 // For coursework/local development only
 
-export async function devSearchSpotify(query, token) {
-    if (!token) {
-        console.error('No Spotify token available for search');
-        return [];
-    }
-
+// Get access token using Client Credentials flow
+async function getClientCredentialsToken(clientId, clientSecret) {
     try {
+        const response = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + btoa(clientId + ':' + clientSecret)
+            },
+            body: 'grant_type=client_credentials'
+        });
+
+        if (!response.ok) {
+            throw new Error(`Token request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.access_token;
+    } catch (error) {
+        console.error('Failed to get client credentials token:', error);
+        return null;
+    }
+}
+
+export async function devSearchSpotify(query, config) {
+    try {
+        // Get token using client credentials
+        const token = await getClientCredentialsToken(config.SPOTIFY_CLIENT_ID, config.SPOTIFY_CLIENT_SECRET);
+        
+        if (!token) {
+            console.error('No Spotify token available for search');
+            return getFallbackTracks(query);
+        }
+
         const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -34,7 +61,7 @@ export async function devSearchSpotify(query, token) {
         }));
     } catch (error) {
         console.error('Dev Spotify search error:', error);
-        return [];
+        return getFallbackTracks(query);
     }
 }
 
