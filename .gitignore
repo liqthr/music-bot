@@ -2,3 +2,6 @@
 spotify.env
 *.env
 .vercel
+
+# Development configuration (contains tokens)
+public/dev-config.js

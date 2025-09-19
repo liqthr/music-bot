@@ -3,6 +3,20 @@ import { searchSpotify } from './spotifySearch.js';
 import { searchSoundCloud } from './soundcloudSearch.js';
 import { initiateSpotifyLogin, checkAuth, handleAuthCallback } from './auth.js';
 
+// Import development configuration
+let DEV_CONFIG = null;
+let devSearchSpotify = null;
+let getFallbackTracks = null;
+try {
+    const devModule = await import('./dev-config.js');
+    DEV_CONFIG = devModule.DEV_CONFIG;
+    const devSearchModule = await import('./dev-search.js');
+    devSearchSpotify = devSearchModule.devSearchSpotify;
+    getFallbackTracks = devSearchModule.getFallbackTracks;
+} catch (e) {
+    console.log('No dev-config.js found, using production mode');
+}
+
 // Import the Spotify player functions
 import { 
     playSong, 
@@ -91,7 +105,20 @@ async function performSearch(query) {
         
         if (currentMode === 'spotify') {
             try {
-                results = await searchSpotify(query);
+                // Use development search if available
+                if (DEV_CONFIG && DEV_CONFIG.DEVELOPMENT_MODE && devSearchSpotify) {
+                    const token = localStorage.getItem('spotify_access_token');
+                    if (token) {
+                        console.log('🔧 Using development Spotify search');
+                        results = await devSearchSpotify(query, token);
+                    } else {
+                        console.log('🔧 No token, using fallback tracks');
+                        results = getFallbackTracks(query);
+                    }
+                } else {
+                    results = await searchSpotify(query);
+                }
+                
                 if (!results || results.length === 0) {
                     console.log('No Spotify results found, trying SoundCloud as fallback...');
                     try {
@@ -737,6 +764,15 @@ function init() {
 
 // Initialize Spotify authentication
 function initSpotifyAuth() {
+    // Check for development mode
+    if (DEV_CONFIG && DEV_CONFIG.DEVELOPMENT_MODE && DEV_CONFIG.SPOTIFY_ACCESS_TOKEN !== 'YOUR_SPOTIFY_TOKEN_HERE') {
+        console.log('🔧 Development mode enabled - using hardcoded token');
+        localStorage.setItem('spotify_access_token', DEV_CONFIG.SPOTIFY_ACCESS_TOKEN);
+        localStorage.setItem('spotify_token_expires_at', String(Date.now() + 3600000)); // 1 hour from now
+        updateAuthUI();
+        return;
+    }
+    
     // Check if we're on the callback page
     if (window.location.pathname === '/callback') {
         handleAuthCallback();
