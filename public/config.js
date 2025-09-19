@@ -4,8 +4,8 @@ const config = {
     spotifyClientId: '', // Will be fetched from server
     spotifyClientSecret: '', // Not needed on client side
     spotifyRedirectUri: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? `${window.location.protocol}//${window.location.host}/callback.html`
-        : 'https://music-bot-brown-nine.vercel.app/callback.html',
+        ? `${window.location.protocol}//${window.location.host}/callback`
+        : 'https://music-bot-brown-nine.vercel.app/callback',
     spotifyScopes: [
         'streaming',
         'user-read-email',
