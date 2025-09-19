@@ -1,119 +1,111 @@
 import config from './config.js';
 
-let player;
-let deviceId;
+// Minimal, robust Spotify Web Playback SDK helper
 
-window.onSpotifyWebPlaybackSDKReady = () => {
-    const token = localStorage.getItem('spotify_access_token');
-    if (!token) {
-        console.error('No access token available');
-        return;
-    }
+let player = null;
+let deviceId = null;
 
-    player = new Spotify.Player({
-        name: 'Web Music Player',
-        getOAuthToken: cb => { cb(token); },
-        volume: 0.5
-    });
+function createPlayer(token) {
+  if (!window.Spotify) {
+    console.error('Spotify SDK not loaded');
+    return;
+  }
 
-    // Error handling
-    player.addListener('initialization_error', ({ message }) => {
-        console.error('Failed to initialize:', message);
-    });
+  player = new Spotify.Player({
+    name: 'Web Music Player',
+    getOAuthToken: cb => { cb(token); },
+    volume: 0.5,
+  });
 
-    player.addListener('authentication_error', ({ message }) => {
-        console.error('Failed to authenticate:', message);
-        localStorage.removeItem('spotify_access_token');
-        window.location.href = '/';
-    });
+  player.addListener('initialization_error', ({ message }) => {
+    console.error('Spotify initialization_error:', message);
+  });
 
-    player.addListener('account_error', ({ message }) => {
-        console.error('Failed to validate Spotify account:', message);
-    });
+  player.addListener('authentication_error', ({ message }) => {
+    console.error('Spotify authentication_error:', message);
+    // cleanup token if invalid
+    localStorage.removeItem('spotify_access_token');
+  });
 
-    player.addListener('playback_error', ({ message }) => {
-        console.error('Failed to perform playback:', message);
-    });
+  player.addListener('account_error', ({ message }) => {
+    console.error('Spotify account_error:', message);
+  });
 
-    // Ready
-    player.addListener('ready', ({ device_id }) => {
-        console.log('Ready with Device ID:', device_id);
-        deviceId = device_id;
-        // Transfer playback to this device
-        transferPlayback(device_id);
-    });
+  player.addListener('playback_error', ({ message }) => {
+    console.error('Spotify playback_error:', message);
+  });
 
-    // Connect to the player
-    player.connect();
-};
+  player.addListener('ready', ({ device_id }) => {
+    console.log('Spotify Player ready with device id', device_id);
+    deviceId = device_id;
+    transferPlayback(deviceId).catch(e => console.warn('transferPlayback failed', e));
+  });
 
-// Connect script in your HTML
-export function initializeSpotifyPlayer() {
-    if (!window.Spotify) {
-        const script = document.createElement('script');
-        script.src = 'https://sdk.scdn.co/spotify-player.js';
-        document.head.appendChild(script);
-    }
+  player.addListener('not_ready', ({ device_id }) => {
+    console.log('Spotify device went offline', device_id);
+  });
+
+  player.addListener('player_state_changed', state => {
+    updatePlayerState(state);
+  });
+
+  player.connect().catch(err => console.error('player.connect() failed', err));
 }
 
-export async function transferPlayback(deviceId) {
-    try {
-        await fetch('https://api.spotify.com/v1/me/player', {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('spotify_access_token')}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                device_ids: [deviceId],
-                play: false,
-            }),
-        });
-    } catch (error) {
-        console.error('Error transferring playback:', error);
-    }
+window.addEventListener('spotify-sdk-ready', async () => {
+  // Called when the SDK script loads and sets the global callback (defined in index.html)
+  const token = localStorage.getItem('spotify_access_token');
+  if (!token) {
+    console.warn('No Spotify access token in localStorage — player will not initialize until logged in');
+    return;
+  }
+  try {
+    createPlayer(token);
+  } catch (err) {
+    console.error('Failed to create Spotify player:', err);
+  }
+});
+
+export async function transferPlayback(targetDeviceId) {
+  if (!targetDeviceId) return;
+  const token = localStorage.getItem('spotify_access_token');
+  if (!token) throw new Error('No token for transferPlayback');
+  await fetch('https://api.spotify.com/v1/me/player', {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ device_ids: [targetDeviceId], play: false })
+  });
 }
 
 export async function playSong(uri) {
-    if (!player || !deviceId) {
-        console.error('Player not ready');
-        return;
-    }
-
-    try {
-        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('spotify_access_token')}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                uris: [uri]
-            })
-        });
-    } catch (error) {
-        console.error('Error playing track:', error);
-    }
+  const token = localStorage.getItem('spotify_access_token');
+  if (!token) throw new Error('No token to play song');
+  if (!deviceId) throw new Error('No Spotify deviceId available');
+  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ uris: [uri] })
+  });
 }
 
-// Update player state
 function updatePlayerState(state) {
-    // Update UI based on state
-    const {
-        position,
-        duration,
-        track_window: { current_track }
-    } = state;
-    // Update your existing player UI
-    document.getElementById('music-title').textContent = current_track.name;
-    document.getElementById('music-artist').textContent = current_track.artists[0].name;
-    document.getElementById('cover').src = current_track.album.images[0].url;
-    document.getElementById('bg-img').src = current_track.album.images[0].url;
-    
-    // Update progress
-    document.getElementById('current-time').textContent = formatTime(position);
-    document.getElementById('duration').textContent = formatTime(duration);
-    document.getElementById('progress').style.width = `${(position / duration) * 100}%`;
+  // Minimal handler — update UI as needed.
+  if (!state) return;
+  try {
+    const track = state.track_window && state.track_window.current_track;
+    if (track) {
+      console.log('Now playing:', track.name, 'by', track.artists.map(a => a.name).join(', '));
+      // TODO: update DOM elements with track info
+    }
+  } catch (err) {
+    console.error('Error updating player state', err);
+  }
 }
 
 export { player, deviceId };
