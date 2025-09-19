@@ -148,6 +148,7 @@ body {
     opacity: 0;
     box-shadow: 0 5px 30px 5px rgba(0, 0, 0, 0.5);
     transition: all 0.5s ease-in-out;
+    display: block;
 }
 
 .player-img:hover img {
@@ -332,6 +333,7 @@ h3 {
     cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     border-bottom: 1px solid #eee;
     transition: background-color 0.2s ease;
 }
@@ -352,6 +354,59 @@ h3 {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    flex: 1;
+}
+
+.song-actions {
+    display: flex;
+    gap: 5px;
+    margin-left: 10px;
+}
+
+.song-actions button {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.play-now {
+    background-color: #1DB954;
+    color: white;
+}
+
+.play-now:hover {
+    background-color: #1ed760;
+    transform: scale(1.05);
+}
+
+.add-to-queue {
+    background-color: #666;
+    color: white;
+}
+
+.add-to-queue:hover {
+    background-color: #888;
+    transform: scale(1.05);
+}
+
+.platform-badge {
+    font-size: 0.7em;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 5px;
+    color: white;
+    text-transform: uppercase;
+}
+
+.platform-badge.spotify {
+    background-color: #1DB954;
+}
+
+.platform-badge.soundcloud {
+    background-color: #ff7700;
 }
 
 #search-results .song-info div:first-child {
@@ -434,6 +489,104 @@ h3 {
     border-radius: 5px;
     margin-right: 10px;
     object-fit: cover;
+}
+
+.queue-item-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.queue-item-title {
+    font-weight: bold;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.queue-item-artist {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.remove-queue-item {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.remove-queue-item:hover {
+    background-color: #ff4444;
+    color: white;
+}
+
+.empty-queue {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 10px;
+}
+
+.next-song-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.next-song-item img {
+    width: 50px;
+    height: 50px;
+    border-radius: 5px;
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+#next-title {
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+#next-artist {
+    font-size: 12px;
+    color: #666;
+}
+
+.empty-next {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 10px;
+}
+
+.queue-notification {
+    position: fixed;
+    bottom: 100px;
+    right: 20px;
+    background-color: #1DB954;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1001;
+    animation: slideInOut 2s ease-in-out;
+}
+
+@keyframes slideInOut {
+    0% { transform: translateX(100%); opacity: 0; }
+    10% { transform: translateX(0); opacity: 1; }
+    90% { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
 }
 
 /* Platform-specific search bar styles */

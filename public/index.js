@@ -473,6 +473,21 @@ function formatTime(time) {
     return `${minutes}:${seconds}`;
 }
 
+// Display error message to user
+function displayErrorMessage(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    document.body.appendChild(errorDiv);
+    
+    // Remove error message after 3 seconds
+    setTimeout(() => {
+        if (errorDiv.parentNode) {
+            errorDiv.parentNode.removeChild(errorDiv);
+        }
+    }, 3000);
+}
+
 // Update progress bar as the song plays
 function updateProgress() {
     if (isPlaying && !music.paused) {

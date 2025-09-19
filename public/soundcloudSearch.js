@@ -2,7 +2,9 @@
 
 console.log('SoundCloudSearch module loaded');
 
-const baseUrl = window.location.origin || 'http://localhost:3000';
+const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? `${window.location.protocol}//${window.location.hostname}:3000`
+    : window.location.origin;
 
 /**
  * Searches SoundCloud for tracks matching the query

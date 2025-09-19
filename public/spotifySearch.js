@@ -2,7 +2,9 @@
 
 import config from './config.js';
 
-const baseUrl = config.baseUrl || 'http://localhost:3000';
+const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? `${window.location.protocol}//${window.location.hostname}:3000`
+    : window.location.origin;
 
 console.log('SpotifySearch module loaded');
 

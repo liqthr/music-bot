@@ -1,10 +1,31 @@
 {
   "version": 2,
-  "buildCommand": null,
-  "outputDirectory": "public",
-  "public": true,
-  "rewrites": [
-    { "source": "/callback", "destination": "/callback.html" },
-    { "source": "/(.*)", "destination": "/$1" }
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/callback",
+      "dest": "/public/callback.html"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/(auth|search|health|player)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
   ]
 }
