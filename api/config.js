@@ -1,7 +1,8 @@
 module.exports = (req, res) => {
+  // safe to expose client id and redirect URI; keep secrets like CLIENT_SECRET server-side
   res.setHeader('Content-Type', 'application/json');
-  // Cache briefly at edge
-  res.setHeader('Cache-Control', 's-maxage=1, stale-while-revalidate=59');
+  // edge cache for short time
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
 
   res.status(200).json({
     spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '',
