@@ -1,9 +1,19 @@
 import config from './config.js';
 import { searchSpotify } from './spotifySearch.js';
 import { searchSoundCloud } from './soundcloudSearch.js';
+import { initiateSpotifyLogin, checkAuth, handleAuthCallback } from './auth.js';
 
 // Import the Spotify player functions
-import { playSong } from './spotifyPlayer.js';
+import { 
+    playSong, 
+    togglePlayback, 
+    nextTrack, 
+    previousTrack, 
+    setVolume, 
+    seek,
+    isPlayerReady,
+    getCurrentState 
+} from './spotifyPlayer.js';
 
 let currentMode = 'spotify';
 
@@ -49,7 +59,9 @@ const image = document.getElementById('cover'),
     volumeSlider = document.getElementById('volume-slider'),
     volumeIcon = document.querySelector('.volume-icon'),
     queueContainer = document.getElementById('queue-container'),
-    upNextContainer = document.getElementById('up-next');
+    upNextContainer = document.getElementById('up-next'),
+    spotifyLoginBtn = document.getElementById('spotify-login-btn'),
+    spotifyStatus = document.getElementById('spotify-status');
 
 // State management
 const music = new Audio();
@@ -201,84 +213,145 @@ async function performSearch(query) {
     }
 }
 
-// Update loadSong function
-function loadSong(index, searchResults) {
+// Enhanced loadSong function with Spotify Web Playback SDK support
+async function loadSong(index, searchResults) {
     if (!searchResults || !searchResults[index]) {
         console.error("Invalid song data");
         return;
     }
 
     const song = searchResults[index];
+    console.log('Loading song:', song);
 
+    // Update current song info
+    songs = searchResults;
+    musicIndex = index;
+
+    // Check if this is a Spotify track with full playback capability
     if (song.platform === 'spotify' && song.uri) {
-        // Use Spotify Web Playback SDK for Spotify tracks
-        playSong(song.uri);
-    } else {
-        // Use existing preview_url logic for non-Spotify tracks
-        // Check if preview_url exists
-        if (!song.preview_url) {
-            console.warn("No preview URL available for this song");
-            displayErrorMessage("No preview available for this song");
-            
-            // Try to find another playable song
-            let foundPlayable = false;
-            for (let i = 0; i < songs.length; i++) {
-                if (songs[i].preview_url) {
-                    console.log(`Found playable alternative at index ${i}`);
-                    loadSong(i, songs);
-                    foundPlayable = true;
-                    break;
-                }
-            }
-            
-            if (!foundPlayable) {
-                console.error("No playable songs found in results");
-            }
-            
+        console.log('Using Spotify Web Playback SDK for:', song.name);
+        
+        // Check if Spotify player is ready
+        if (!isPlayerReady()) {
+            displayErrorMessage("Spotify player not ready. Please wait or log in to Spotify.");
             return;
         }
 
-        try {
-            // Reset the audio element before setting a new source
+        // Stop any current HTML5 audio playback
+        if (music.src) {
             music.pause();
-            music.currentTime = 0;
             music.src = '';
-            
-            // Set the new source
-            music.src = song.preview_url;
-            
-            // Handle artwork safely
-            if (song.album && song.album.images && song.album.images[0]) {
-                image.src = song.album.images[0].url;
-                background.src = song.album.images[0].url;
-            } else {
-                image.src = 'images/default.jpg';
-                background.src = 'images/default.jpg';
-            }
-            
-            // Set track info
-            title.innerText = song.name || 'Unknown Title';
-            artist.innerText = song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist';
-
-            // Add platform indicator
-            const platformIndicator = document.createElement('span');
-            platformIndicator.className = `platform-indicator ${song.platform || 'spotify'}`;
-            platformIndicator.textContent = song.platform === 'soundcloud' ? 'SoundCloud' : 'Spotify';
-            artist.appendChild(platformIndicator);
-
-            // Set up duration once the metadata is loaded
-            music.addEventListener('loadedmetadata', () => {
-                currentDuration = music.duration;
-                durationEl.textContent = formatTime(currentDuration);
-            });
-            
-            updateQueueDisplay();
-            playMusic();
-        } catch (error) {
-            console.error("Error loading song:", error);
-            displayErrorMessage("Failed to load song");
+            clearInterval(progressInterval);
         }
+
+        // Update UI immediately (Spotify SDK will update it again when playback starts)
+        updateUIForSong(song);
+
+        // Play using Spotify Web Playback SDK
+        const success = await playSong(song.uri);
+        if (success) {
+            isPlaying = true;
+            playBtn.className = 'fas fa-pause play-button';
+            console.log('Successfully started Spotify playback');
+        } else {
+            console.log('Spotify playback failed, falling back to preview if available');
+            // Fall back to preview URL if Spotify playback fails
+            if (song.preview_url) {
+                loadPreviewTrack(song);
+            } else {
+                displayErrorMessage("Unable to play this track. No preview available.");
+            }
+        }
+    } else {
+        // Use HTML5 audio for non-Spotify tracks or tracks without URI
+        console.log('Using HTML5 audio for:', song.name);
+        loadPreviewTrack(song);
     }
+}
+
+// Load track using HTML5 audio (for previews)
+function loadPreviewTrack(song) {
+    // Check if preview_url exists
+    if (!song.preview_url) {
+        console.warn("No preview URL available for this song");
+        displayErrorMessage("No preview available for this song");
+        
+        // Try to find another playable song
+        let foundPlayable = false;
+        for (let i = 0; i < songs.length; i++) {
+            if (songs[i].preview_url || (songs[i].platform === 'spotify' && songs[i].uri)) {
+                console.log(`Found playable alternative at index ${i}`);
+                loadSong(i, songs);
+                foundPlayable = true;
+                break;
+            }
+        }
+        
+        if (!foundPlayable) {
+            console.error("No playable songs found in results");
+        }
+        
+        return;
+    }
+
+    try {
+        // Reset the audio element before setting a new source
+        music.pause();
+        music.currentTime = 0;
+        music.src = '';
+        
+        // Set the new source
+        music.src = song.preview_url;
+        
+        // Update UI
+        updateUIForSong(song);
+
+        // Set up duration once the metadata is loaded
+        music.addEventListener('loadedmetadata', () => {
+            currentDuration = music.duration;
+            durationEl.textContent = formatTime(currentDuration);
+        });
+        
+        updateQueueDisplay();
+        playMusic();
+    } catch (error) {
+        console.error("Error loading song:", error);
+        displayErrorMessage("Failed to load song");
+    }
+}
+
+// Update UI elements for a song
+function updateUIForSong(song) {
+    // Handle artwork safely
+    if (song.album && song.album.images && song.album.images[0]) {
+        image.src = song.album.images[0].url;
+        background.src = song.album.images[0].url;
+    } else {
+        image.src = 'images/default.jpg';
+        background.src = 'images/default.jpg';
+    }
+    
+    // Set track info
+    title.innerText = song.name || 'Unknown Title';
+    
+    // Clear previous artist content and set new artist
+    artist.innerHTML = '';
+    const artistName = song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist';
+    artist.innerText = artistName;
+
+    // Add platform indicator
+    const platformIndicator = document.createElement('span');
+    platformIndicator.className = `platform-indicator ${song.platform || 'spotify'}`;
+    platformIndicator.textContent = song.platform === 'soundcloud' ? 'SoundCloud' : 'Spotify';
+    platformIndicator.style.cssText = `
+        margin-left: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.8em;
+        background: ${song.platform === 'soundcloud' ? '#ff5500' : '#1db954'};
+        color: white;
+    `;
+    artist.appendChild(platformIndicator);
 }
 
 // Enhanced playMusic function with better error handling
@@ -507,16 +580,28 @@ function updateProgress() {
     }
 }
 
-// Set progress bar
-function setProgress(e) {
+// Set progress bar with Spotify Web Playback SDK support
+async function setProgress(e) {
     const width = playerProgress.clientWidth;
     const clickX = e.offsetX;
-    const duration = music.duration;
-
-    if (isNaN(duration) || duration === 0) return;
     
-    music.currentTime = (clickX / width) * duration;
-    updateProgress();
+    // Check if we're using Spotify Web Playback SDK
+    const currentState = getCurrentState();
+    if (currentState) {
+        // Using Spotify Web Playback SDK
+        const duration = currentState.duration;
+        if (duration > 0) {
+            const positionMs = (clickX / width) * duration;
+            await seek(positionMs);
+        }
+    } else {
+        // Using HTML5 audio
+        const duration = music.duration;
+        if (isNaN(duration) || duration === 0) return;
+        
+        music.currentTime = (clickX / width) * duration;
+        updateProgress();
+    }
 }
 
 // Start updating the progress bar every second
@@ -525,21 +610,60 @@ function startProgressInterval() {
     progressInterval = setInterval(updateProgress, 1000);
 }
 
-// Event Listeners
-playBtn.addEventListener('click', () => isPlaying ? pauseMusic() : playMusic());
-prevBtn.addEventListener('click', prevSong);
-nextBtn.addEventListener('click', nextSong);
+// Event Listeners with Spotify Web Playback SDK support
+playBtn.addEventListener('click', async () => {
+    // Check if we're using Spotify Web Playback SDK
+    const currentState = getCurrentState();
+    if (currentState) {
+        // Using Spotify Web Playback SDK
+        await togglePlayback();
+    } else {
+        // Using HTML5 audio
+        isPlaying ? pauseMusic() : playMusic();
+    }
+});
+
+prevBtn.addEventListener('click', async () => {
+    const currentState = getCurrentState();
+    if (currentState) {
+        // Using Spotify Web Playback SDK
+        await previousTrack();
+    } else {
+        // Using HTML5 audio
+        prevSong();
+    }
+});
+
+nextBtn.addEventListener('click', async () => {
+    const currentState = getCurrentState();
+    if (currentState) {
+        // Using Spotify Web Playback SDK
+        await nextTrack();
+    } else {
+        // Using HTML5 audio
+        nextSong();
+    }
+});
 playerProgress.addEventListener('click', setProgress);
 music.addEventListener('ended', nextSong);
 
-// Volume control
-volumeSlider.addEventListener('input', (e) => {
-    music.volume = e.target.value;
+// Volume control with Spotify Web Playback SDK support
+volumeSlider.addEventListener('input', async (e) => {
+    const volume = parseFloat(e.target.value);
+    
+    // Set volume for HTML5 audio
+    music.volume = volume;
+    
+    // Set volume for Spotify Web Playback SDK if active
+    const currentState = getCurrentState();
+    if (currentState) {
+        await setVolume(volume);
+    }
     
     // Update volume icon based on volume level
-    if (music.volume === 0) {
+    if (volume === 0) {
         volumeIcon.className = 'fas fa-volume-mute volume-icon';
-    } else if (music.volume < 0.5) {
+    } else if (volume < 0.5) {
         volumeIcon.className = 'fas fa-volume-down volume-icon';
     } else {
         volumeIcon.className = 'fas fa-volume-up volume-icon';
@@ -595,6 +719,9 @@ function init() {
     // Ensure the queue container is displayed properly at startup
     updateQueueDisplay();
     
+    // Initialize Spotify authentication
+    initSpotifyAuth();
+    
     // Add keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
@@ -606,6 +733,65 @@ function init() {
             prevSong();
         }
     });
+}
+
+// Initialize Spotify authentication
+function initSpotifyAuth() {
+    // Check if we're on the callback page
+    if (window.location.pathname === '/callback') {
+        handleAuthCallback();
+        return;
+    }
+    
+    // Check current auth status
+    updateAuthUI();
+    
+    // Add login button event listener
+    if (spotifyLoginBtn) {
+        spotifyLoginBtn.addEventListener('click', () => {
+            if (checkAuth()) {
+                // Already logged in, maybe show logout option
+                localStorage.removeItem('spotify_access_token');
+                localStorage.removeItem('spotify_token_expires_at');
+                updateAuthUI();
+            } else {
+                // Initiate login
+                initiateSpotifyLogin();
+            }
+        });
+    }
+    
+    // Listen for Spotify player ready event
+    window.addEventListener('spotify-player-ready', () => {
+        updateAuthUI();
+    });
+}
+
+// Update authentication UI
+function updateAuthUI() {
+    if (!spotifyLoginBtn || !spotifyStatus) return;
+    
+    const isAuthenticated = checkAuth();
+    const playerReady = isPlayerReady();
+    
+    if (isAuthenticated) {
+        if (playerReady) {
+            spotifyLoginBtn.innerHTML = '<i class="fab fa-spotify"></i> Spotify Connected';
+            spotifyLoginBtn.className = 'auth-button logged-in';
+            spotifyStatus.innerHTML = '<span class="success">✓ Ready for full song playback</span>';
+            spotifyStatus.className = 'auth-status success';
+        } else {
+            spotifyLoginBtn.innerHTML = '<i class="fab fa-spotify"></i> Spotify Connecting...';
+            spotifyLoginBtn.className = 'auth-button';
+            spotifyStatus.innerHTML = 'Initializing Spotify player...';
+            spotifyStatus.className = 'auth-status';
+        }
+    } else {
+        spotifyLoginBtn.innerHTML = '<i class="fab fa-spotify"></i> Login to Spotify for Full Playback';
+        spotifyLoginBtn.className = 'auth-button';
+        spotifyStatus.innerHTML = 'Login required for full song playback (not just previews)';
+        spotifyStatus.className = 'auth-status';
+    }
 }
 
 // Initialize the player
