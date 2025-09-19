@@ -1,7 +1,5 @@
 module.exports = (req, res) => {
-  // safe to expose client id and redirect URI; keep secrets like CLIENT_SECRET server-side
   res.setHeader('Content-Type', 'application/json');
-  // edge cache for short time
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
 
   res.status(200).json({

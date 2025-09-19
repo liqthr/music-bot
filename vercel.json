@@ -6,11 +6,5 @@
   "rewrites": [
     { "source": "/callback", "destination": "/callback.html" },
     { "source": "/(.*)", "destination": "/$1" }
-  ],
-  "env": {
-    "SPOTIFY_CLIENT_ID": "@spotify_client_id",
-    "SPOTIFY_CLIENT_SECRET": "@spotify_client_secret",
-    "YOUTUBE_API_KEY": "@youtube_api_key",
-    "SOUNDCLOUD_CLIENT_ID": "@soundcloud_client_id"
-  }
+  ]
 }
