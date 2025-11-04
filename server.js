@@ -505,11 +505,16 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Server error', message: err.message });
 });
 
-// Start server
-if (validateEnvVars()) {
+// Export the Express app for Vercel serverless functions
+// Vercel will invoke this as a serverless function
+export default app;
+
+// Start server only for local development (not on Vercel)
+// Vercel detects serverless functions automatically and doesn't use app.listen()
+if (process.env.VERCEL !== '1' && validateEnvVars()) {
   app.listen(port, () => {
     logger.info(`Server running on port ${port}`);
   });
-} else {
+} else if (process.env.VERCEL !== '1') {
   logger.error('Server not started due to missing environment variables');
 }
