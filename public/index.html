@@ -10,74 +10,97 @@
     <!-- Ensure SDK-ready is defined before the SDK script loads -->
     <script>
         // Define the global callback the Spotify SDK expects.
-        // This runs immediately (before the SDK loads) and dispatches an event we can listen to.
         window.onSpotifyWebPlaybackSDKReady = () => {
             window.dispatchEvent(new Event('spotify-sdk-ready'));
         };
     </script>
-
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </head>
 
 <body>
-    <div class="background">
-        <img src="images/default.jpg" alt="bg" id="bg-img">
-    </div>
+    <div class="bg-atmosphere"></div>
+    <div class="grain"></div>
 
-    <!-- Search Container -->
-    <div id="search-container">
-        <div id="mode-switch">
-            <img src="" id="spotify-logo" onclick="switchMode('spotify')" class="active"
-                alt="Spotify">
-            <img src="" id="soundcloud-logo" onclick="switchMode('soundcloud')" alt="SoundCloud">
-        </div>
-        <input type="text" id="search" class="spotify" placeholder="Search for songs...">
-        <div id="platform-info">
-            <img id="platform-logo" src="" alt="Platform">
-            <span id="platform-text">Spotify Search</span>
-        </div>
-        
-        <!-- Spotify Login Button -->
-        <div id="spotify-auth-container">
-            <button id="spotify-login-btn" class="auth-button">
-                <i class="fab fa-spotify"></i> Login to Spotify for Full Playback
-            </button>
-            <div id="spotify-status" class="auth-status"></div>
-        </div>
-    </div>
-    
-    <div id="search-results"></div>
-    
-    <div class="container">
-        <div class="player-img">
-            <img src="images/default.jpg" alt="Cover Art" id="cover">
-        </div>
-        <h2 id="music-title">Song Title</h2>
-        <h3 id="music-artist">Artist</h3>
-        <div class="player-progress" id="player-progress">
-            <div class="progress" id="progress"></div>
-            <div class="music-duration">
-                <span id="current-time">0:00</span>
-                <span id="duration">0:00</span>
+    <!-- Header with Search -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">AURALIS</div>
+            <div class="search-section">
+                <div class="platform-toggle" id="mode-switch">
+                    <button class="platform-btn active" id="spotify-logo" onclick="switchMode('spotify')" title="Spotify">
+                        <i class="fab fa-spotify"></i>
+                    </button>
+                    <button class="platform-btn" id="soundcloud-logo" onclick="switchMode('soundcloud')" title="SoundCloud">
+                        <i class="fab fa-soundcloud"></i>
+                    </button>
+                </div>
+                <div class="search-wrapper">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="search" class="search-input" placeholder="Search tracks...">
+                    <div id="search-results" class="search-results" style="display: none;"></div>
+                </div>
+            </div>
+            <!-- Spotify Auth -->
+            <div id="spotify-auth-container">
+                <button id="spotify-login-btn" class="auth-button">
+                    <i class="fab fa-spotify"></i> Login to Spotify
+                </button>
+                <div id="spotify-status" class="auth-status"></div>
             </div>
         </div>
-        <div class="player-controls">
-            <i class="fas fa-backward" id="prev"></i>
-            <i class="fas fa-play play-button" id="play"></i>
-            <i class="fas fa-forward" id="next"></i>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        <div class="player-card">
+            <div class="album-art-wrapper">
+                <img src="images/default.jpg" alt="Album Art" id="cover" class="album-art">
+            </div>
+            
+            <div class="track-info">
+                <h1 id="music-title" class="track-title">Choose a Track</h1>
+                <p id="music-artist" class="track-artist">Search to get started</p>
+            </div>
+
+            <div class="progress-section">
+                <div id="player-progress" class="progress-bar">
+                    <div id="progress" class="progress-fill"></div>
+                </div>
+                <div class="time-display">
+                    <span id="current-time" class="current-time">0:00</span>
+                    <span id="duration" class="total-time">0:00</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="prev" class="control-btn prev-btn">
+                    <i class="fas fa-backward"></i>
+                </button>
+                <button id="play" class="control-btn play-btn">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="next" class="control-btn next-btn">
+                    <i class="fas fa-forward"></i>
+                </button>
+            </div>
+
+            <div class="volume-section">
+                <i class="fas fa-volume-up volume-icon"></i>
+                <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.01" value="1">
+            </div>
         </div>
 
-        <!-- Volume Control -->
-        <div class="volume-control">
-            <i class="fas fa-volume-up volume-icon"></i>
-            <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1">
+        <div class="queue-section">
+            <h2 class="queue-header">Up Next</h2>
+            <div id="up-next" class="queue-list">
+                <div id="queue-container"></div>
+            </div>
         </div>
-    </div>
-    
-    <!-- Up Next / Queue -->
-    <div id="up-next">
-        <h2>Up Next</h2>
-        <div id="queue-container"></div>
+    </main>
+
+    <!-- Hidden background image for blur effect -->
+    <div class="background" style="display: none;">
+        <img src="images/default.jpg" alt="bg" id="bg-img">
     </div>
     
     <script type="module" src="index.js"></script>
