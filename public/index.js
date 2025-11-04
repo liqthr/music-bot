@@ -91,6 +91,7 @@ music.volume = volumeSlider ? volumeSlider.value : 1;
 async function performSearch(query) {
     if (!query || query.trim() === '') {
         searchResults.innerHTML = '';
+        searchResults.style.display = 'none';
         return;
     }
     
@@ -219,11 +220,14 @@ async function performSearch(query) {
                 
                 searchResults.appendChild(songElement);
             });
+            searchResults.style.display = 'block';
         } else if (searchError) {
             // Show error message if both primary and fallback search failed
             searchResults.innerHTML = `<p class="error">${searchError}</p>`;
+            searchResults.style.display = 'block';
         } else {
             searchResults.innerHTML = '<p>No results found.</p>';
+            searchResults.style.display = 'block';
         }
     } catch (error) {
         console.error("Search error:", error);
@@ -745,6 +749,7 @@ searchInput.addEventListener('input', (e) => {
 document.addEventListener('click', (e) => {
     if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
         searchResults.innerHTML = '';
+        searchResults.style.display = 'none';
     }
 });
 
@@ -773,6 +778,14 @@ function init() {
             prevSong();
         }
     });
+
+    // Wire platform buttons (CSP-safe)
+    const btnSpotify = document.getElementById('spotify-logo');
+    const btnSoundCloud = document.getElementById('soundcloud-logo');
+    const btnYouTube = document.getElementById('youtube-logo');
+    if (btnSpotify) btnSpotify.addEventListener('click', () => switchMode('spotify'));
+    if (btnSoundCloud) btnSoundCloud.addEventListener('click', () => switchMode('soundcloud'));
+    if (btnYouTube) btnYouTube.addEventListener('click', () => switchMode('youtube'));
 }
 
 // Initialize Spotify authentication
