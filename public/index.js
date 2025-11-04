@@ -28,7 +28,11 @@ function switchMode(mode) {
     if (mode === 'spotify') {
         if (platformLogo) platformLogo.src = 'spotify-logo.png';
         if (platformText) platformText.textContent = 'Spotify Search';
-        searchBar.className = 'spotify';
+        // keep base styling and toggle a mode modifier class
+        if (searchBar) {
+            searchBar.classList.remove('mode-soundcloud', 'mode-youtube');
+            searchBar.classList.add('mode-spotify');
+        }
         document.getElementById('spotify-logo').classList.add('active');
         document.getElementById('soundcloud-logo').classList.remove('active');
         const ytBtn = document.getElementById('youtube-logo');
@@ -36,14 +40,20 @@ function switchMode(mode) {
     } else if (mode === 'soundcloud') {
         if (platformLogo) platformLogo.src = 'soundcloud-logo.png';
         if (platformText) platformText.textContent = 'SoundCloud Search';
-        searchBar.className = 'soundcloud';
+        if (searchBar) {
+            searchBar.classList.remove('mode-spotify', 'mode-youtube');
+            searchBar.classList.add('mode-soundcloud');
+        }
         document.getElementById('spotify-logo').classList.remove('active');
         document.getElementById('soundcloud-logo').classList.add('active');
         const ytBtn = document.getElementById('youtube-logo');
         if (ytBtn) ytBtn.classList.remove('active');
     } else if (mode === 'youtube') {
         if (platformText) platformText.textContent = 'YouTube Search';
-        searchBar.className = 'youtube';
+        if (searchBar) {
+            searchBar.classList.remove('mode-spotify', 'mode-soundcloud');
+            searchBar.classList.add('mode-youtube');
+        }
         document.getElementById('spotify-logo').classList.remove('active');
         document.getElementById('soundcloud-logo').classList.remove('active');
         const ytBtn = document.getElementById('youtube-logo');
@@ -385,14 +395,15 @@ function updateUIForSong(song) {
 
     // Add platform indicator
     const platformIndicator = document.createElement('span');
-    platformIndicator.className = `platform-indicator ${song.platform || 'spotify'}`;
-    platformIndicator.textContent = song.platform === 'soundcloud' ? 'SoundCloud' : 'Spotify';
+    const platform = song.platform || 'spotify';
+    platformIndicator.className = `platform-indicator ${platform}`;
+    platformIndicator.textContent = platform === 'soundcloud' ? 'SoundCloud' : (platform === 'youtube' ? 'YouTube' : 'Spotify');
     platformIndicator.style.cssText = `
         margin-left: 10px;
         padding: 2px 6px;
         border-radius: 3px;
         font-size: 0.8em;
-        background: ${song.platform === 'soundcloud' ? '#ff5500' : '#1db954'};
+        background: ${platform === 'soundcloud' ? '#ff5500' : (platform === 'youtube' ? '#ff0000' : '#1db954')};
         color: white;
     `;
     artist.appendChild(platformIndicator);

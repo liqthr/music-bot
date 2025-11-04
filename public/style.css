@@ -150,6 +150,11 @@ body {
     transition: all 0.3s ease;
 }
 
+/* Keep a consistent base style; allow subtle color accents per mode if desired */
+.search-input.mode-spotify { }
+.search-input.mode-soundcloud { }
+.search-input.mode-youtube { }
+
 .search-input:focus {
     outline: none;
     border-color: var(--primary);
@@ -691,6 +696,10 @@ body {
 
 .platform-indicator.soundcloud {
     background-color: #ff7700;
+}
+
+.platform-indicator.youtube {
+    background-color: #ff0000;
 }
 
 /* Notifications */

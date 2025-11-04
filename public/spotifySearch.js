@@ -109,6 +109,7 @@ async function searchSpotify(query) {
                 images: item.album.images
             },
             preview_url: item.preview_url,
+            uri: item.uri,
             platform: 'spotify', // Add platform identifier
             external_url: item.external_urls?.spotify || ''
         }));
