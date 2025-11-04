@@ -64,7 +64,7 @@ async function getAccessToken() {
  * @param {string} query - The search query
  * @returns {Promise<Array>} - Array of tracks matching the query
  */
-async function searchSpotify(query) {
+async function searchSpotify(query, options = {}) {
     console.log('searchSpotify called with query:', query);
 
     if (!query || query.trim() === '') {
@@ -84,7 +84,8 @@ async function searchSpotify(query) {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Cache-Control': 'no-cache'
-            }
+            },
+            signal: options.signal
         });
 
         if (!response.ok) {

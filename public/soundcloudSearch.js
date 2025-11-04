@@ -11,7 +11,7 @@ const baseUrl = window.location.hostname === 'localhost' || window.location.host
  * @param {string} query - The search query
  * @returns {Promise<Array>} - Array of tracks matching the query
  */
-export async function searchSoundCloud(query) {
+export async function searchSoundCloud(query, options = {}) {
     console.log('searchSoundCloud called with query:', query);
     if (!query || query.trim() === '') {
         console.warn('Empty search query');
@@ -29,7 +29,7 @@ export async function searchSoundCloud(query) {
                     'Cache-Control': 'no-cache'
                 },
                 // Add timeout for better error handling
-                signal: AbortSignal.timeout(10000) // 10 second timeout
+                signal: options.signal || AbortSignal.timeout(10000) // 10 second timeout
             }
         );
 
@@ -43,7 +43,8 @@ export async function searchSoundCloud(query) {
                     headers: {
                         'Content-Type': 'application/json',
                         'Cache-Control': 'no-cache'
-                    }
+                    },
+                    signal: options.signal
                 }
             );
         }
