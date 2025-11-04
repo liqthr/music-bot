@@ -68,6 +68,36 @@ export async function findOnYouTube(spotifyTrack) {
 }
 
 /**
+ * Generic YouTube search for UI mode
+ * @param {string} query
+ * @returns {Promise<Array>} normalized results
+ */
+export async function searchYouTube(query) {
+    if (!query || query.trim() === '') return [];
+    try {
+        const response = await fetch(`${baseUrl}/youtube-search?q=${encodeURIComponent(query.trim())}`, {
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        if (!data.items || !Array.isArray(data.items)) return [];
+        return data.items
+            .filter(item => item.id && item.id.videoId)
+            .map(item => ({
+                id: item.id.videoId,
+                name: item.snippet?.title || 'Unknown Title',
+                artists: [{ name: item.snippet?.channelTitle || 'YouTube' }],
+                album: { images: [{ url: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.default?.url }] },
+                platform: 'youtube',
+                videoId: item.id.videoId
+            }));
+    } catch (e) {
+        console.error('YouTube search error:', e);
+        return [];
+    }
+}
+
+/**
  * Find the best match from YouTube results based on Spotify metadata
  * @param {Array} items - YouTube search results
  * @param {Object} spotifyTrack - Original Spotify track

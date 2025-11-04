@@ -33,6 +33,9 @@
                     <button class="platform-btn" id="soundcloud-logo" onclick="switchMode('soundcloud')" title="SoundCloud">
                         <i class="fab fa-soundcloud"></i>
                     </button>
+                    <button class="platform-btn" id="youtube-logo" onclick="switchMode('youtube')" title="YouTube">
+                        <i class="fab fa-youtube"></i>
+                    </button>
                 </div>
                 <div class="search-wrapper">
                     <i class="fas fa-search search-icon"></i>
@@ -102,6 +105,9 @@
     <div class="background" style="display: none;">
         <img src="images/default.jpg" alt="bg" id="bg-img">
     </div>
+    
+    <!-- Hidden YouTube player container for fallback playback -->
+    <div id="player-container" style="width:0;height:0;overflow:hidden;position:absolute;left:-9999px;"></div>
     
     <script type="module" src="index.js"></script>
 </body>

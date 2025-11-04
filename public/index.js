@@ -1,6 +1,7 @@
 import config from './config.js';
 import { searchSpotify } from './spotifySearch.js';
 import { searchSoundCloud } from './soundcloudSearch.js';
+import { searchYouTube, findOnYouTube, initYouTubePlayer, playYouTubeVideo } from './youtubeSearch.js';
 import { initiateSpotifyLogin, checkAuth, handleAuthCallback } from './auth.js';
 
 // Import the Spotify player functions
@@ -30,12 +31,24 @@ function switchMode(mode) {
         searchBar.className = 'spotify';
         document.getElementById('spotify-logo').classList.add('active');
         document.getElementById('soundcloud-logo').classList.remove('active');
+        const ytBtn = document.getElementById('youtube-logo');
+        if (ytBtn) ytBtn.classList.remove('active');
     } else if (mode === 'soundcloud') {
         platformLogo.src = 'soundcloud-logo.png';
         platformText.textContent = 'SoundCloud Search';
         searchBar.className = 'soundcloud';
         document.getElementById('spotify-logo').classList.remove('active');
         document.getElementById('soundcloud-logo').classList.add('active');
+        const ytBtn = document.getElementById('youtube-logo');
+        if (ytBtn) ytBtn.classList.remove('active');
+    } else if (mode === 'youtube') {
+        platformLogo.src = 'spotify-logo.png';
+        platformText.textContent = 'YouTube Search';
+        searchBar.className = 'youtube';
+        document.getElementById('spotify-logo').classList.remove('active');
+        document.getElementById('soundcloud-logo').classList.remove('active');
+        const ytBtn = document.getElementById('youtube-logo');
+        if (ytBtn) ytBtn.classList.add('active');
     }
 
     document.getElementById('search-results').innerHTML = '';
@@ -147,6 +160,12 @@ async function performSearch(query) {
                     console.error('Spotify fallback also failed:', spotifyError);
                 }
             }
+        } else if (currentMode === 'youtube') {
+            try {
+                results = await searchYouTube(query);
+            } catch (error) {
+                searchError = `YouTube search failed: ${error.message}`;
+            }
         }
 
         // Clear previous results
@@ -254,14 +273,36 @@ async function loadSong(index, searchResults) {
             playBtn.className = 'fas fa-pause play-button';
             console.log('Successfully started Spotify playback');
         } else {
-            console.log('Spotify playback failed, falling back to preview if available');
-            // Fall back to preview URL if Spotify playback fails
+            console.log('Spotify playback failed, attempting YouTube fallback...');
+            try {
+                const yt = await findOnYouTube(song);
+                if (yt && yt.id) {
+                    // Update UI for YouTube metadata
+                    updateUIForSong({
+                        name: yt.title,
+                        artists: [{ name: yt.channelTitle }],
+                        album: { images: [{ url: yt.thumbnailUrl }] },
+                        platform: 'youtube'
+                    });
+                    await initYouTubePlayer();
+                    playYouTubeVideo(yt.id);
+                    return;
+                }
+            } catch (e) {
+                console.warn('YouTube fallback failed', e);
+            }
+            // Final fallback
             if (song.preview_url) {
                 loadPreviewTrack(song);
             } else {
                 displayErrorMessage("Unable to play this track. No preview available.");
             }
         }
+    } else if (song.platform === 'youtube' && song.videoId) {
+        // Play YouTube video directly
+        updateUIForSong(song);
+        await initYouTubePlayer();
+        playYouTubeVideo(song.videoId);
     } else {
         // Use HTML5 audio for non-Spotify tracks or tracks without URI
         console.log('Using HTML5 audio for:', song.name);
