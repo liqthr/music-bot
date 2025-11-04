@@ -24,6 +24,18 @@
       "dest": "/server.js"
     },
     {
+      "src": "/search",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/youtube-search",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/youtube-video/(.*)",
+      "dest": "/server.js"
+    },
+    {
       "src": "/spotify-search",
       "dest": "/server.js"
     },
