@@ -26,24 +26,23 @@ function switchMode(mode) {
     const searchBar = document.getElementById('search');
 
     if (mode === 'spotify') {
-        platformLogo.src = 'spotify-logo.png';
-        platformText.textContent = 'Spotify Search';
+        if (platformLogo) platformLogo.src = 'spotify-logo.png';
+        if (platformText) platformText.textContent = 'Spotify Search';
         searchBar.className = 'spotify';
         document.getElementById('spotify-logo').classList.add('active');
         document.getElementById('soundcloud-logo').classList.remove('active');
         const ytBtn = document.getElementById('youtube-logo');
         if (ytBtn) ytBtn.classList.remove('active');
     } else if (mode === 'soundcloud') {
-        platformLogo.src = 'soundcloud-logo.png';
-        platformText.textContent = 'SoundCloud Search';
+        if (platformLogo) platformLogo.src = 'soundcloud-logo.png';
+        if (platformText) platformText.textContent = 'SoundCloud Search';
         searchBar.className = 'soundcloud';
         document.getElementById('spotify-logo').classList.remove('active');
         document.getElementById('soundcloud-logo').classList.add('active');
         const ytBtn = document.getElementById('youtube-logo');
         if (ytBtn) ytBtn.classList.remove('active');
     } else if (mode === 'youtube') {
-        platformLogo.src = 'spotify-logo.png';
-        platformText.textContent = 'YouTube Search';
+        if (platformText) platformText.textContent = 'YouTube Search';
         searchBar.className = 'youtube';
         document.getElementById('spotify-logo').classList.remove('active');
         document.getElementById('soundcloud-logo').classList.remove('active');
