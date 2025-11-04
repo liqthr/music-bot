@@ -4,8 +4,6 @@ import axios from 'axios';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import qs from 'qs';
-import config from './config.js';
 import winston from 'winston';
 import { youtube_v3 } from '@googleapis/youtube';
 
@@ -18,7 +16,10 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
-    new winston.transports.File({ filename: 'server.log' })
+    // Avoid file logging in serverless/platform environments
+    ...(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME ? [] : [
+      new winston.transports.File({ filename: 'server.log' })
+    ])
   ]
 });
 
@@ -39,6 +40,8 @@ if (missingEnvVars.length > 0) {
 }
 
 const app = express();
+// Ensure correct protocol/host when behind proxies (Vercel, etc.)
+app.set('trust proxy', 1);
 const port = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -77,6 +80,26 @@ function validateEnvVars() {
   }
   return true;
 }
+
+// Public client configuration endpoint consumed by public/auth.js
+app.get('/api/config', (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const redirectUri = isProd
+    ? 'https://music-bot-brown-nine.vercel.app/callback'
+    : 'http://localhost:3000/callback';
+
+  res.json({
+    spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '',
+    spotifyRedirectUri: redirectUri,
+    spotifyScopes: [
+      'streaming',
+      'user-read-email',
+      'user-read-private',
+      'user-read-playback-state',
+      'user-modify-playback-state'
+    ].join(' ')
+  });
+});
 
 // Spotify authentication endpoint
 app.get('/auth', async (req, res) => {
@@ -145,6 +168,12 @@ app.get('/search', async (req, res) => {
     
     res.status(500).json({ error: 'Failed to search tracks' });
   }
+});
+
+// Provide an alias for Spotify search to match vercel.json route
+app.get('/spotify-search', (req, res) => {
+  const q = typeof req.query.q === 'string' ? req.query.q : '';
+  res.redirect(307, `/search?q=${encodeURIComponent(q)}`);
 });
 
 // YouTube search endpoint
@@ -394,7 +423,8 @@ app.get('/soundcloud-stream', async (req, res) => {
       throw new Error('Failed to get stream URL');
     }
     
-    res.json({ stream_url: streamResponse.data.url });
+    // Redirect client directly to the actual audio stream URL
+    res.redirect(302, streamResponse.data.url);
     
   } catch (error) {
     logger.error('SoundCloud Stream Resolution Error:', {

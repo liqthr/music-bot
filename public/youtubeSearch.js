@@ -1,7 +1,5 @@
 // youtubeSearch.js - YouTube search and player integration
-import config from './config.js';
-
-const baseUrl = config.baseUrl || 'http://localhost:3000';
+const baseUrl = (typeof window !== 'undefined' && window.location && window.location.origin) || 'http://localhost:3000';
 
 /**
  * Search YouTube for a track matching Spotify metadata
