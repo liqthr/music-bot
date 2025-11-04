@@ -12,13 +12,13 @@
   ],
   "headers": [
     {
-      "source": "/public/(.*)\.(css|js|png|jpg|jpeg|svg|webp|gif|woff2)",
+      "source": "/public/(.*)\\.(css|js|png|jpg|jpeg|svg|webp|gif|woff2)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/(.*)\.(css|js|png|jpg|jpeg|svg|webp|gif|woff2)",
+      "source": "/(.*)\\.(css|js|png|jpg|jpeg|svg|webp|gif|woff2)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
