@@ -48,12 +48,16 @@
       "destination": "/server.js"
     },
     {
+      "source": "/soundcloud-stream",
+      "destination": "/server.js"
+    },
+    {
       "source": "/health",
       "destination": "/server.js"
     },
     {
-      "source": "/:path*",
-      "destination": "/public/:path*"
+      "source": "/health/details",
+      "destination": "/server.js"
     }
   ],
   "headers": [
