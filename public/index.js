@@ -1,6 +1,5 @@
 import config from './config.js';
-import { searchSpotify } from './spotifySearch.js';
-import { searchSoundCloud } from './soundcloudSearch.js';
+import { searchByMode } from './providers/index.js';
 import { searchYouTube, findOnYouTube, initYouTubePlayer, playYouTubeVideo } from './youtubeSearch.js';
 import { initiateSpotifyLogin, checkAuth, handleAuthCallback } from './auth.js';
 
@@ -17,6 +16,7 @@ import {
 } from './spotifyPlayer.js';
 
 let currentMode = 'spotify';
+let currentSearchController = null; // AbortController for in-flight searches
 
 // Updated switchMode function with better platform handling
 function switchMode(mode) {
@@ -28,7 +28,11 @@ function switchMode(mode) {
     if (mode === 'spotify') {
         if (platformLogo) platformLogo.src = 'spotify-logo.png';
         if (platformText) platformText.textContent = 'Spotify Search';
-        searchBar.className = 'spotify';
+        // keep base styling and toggle a mode modifier class
+        if (searchBar) {
+            searchBar.classList.remove('mode-soundcloud', 'mode-youtube');
+            searchBar.classList.add('mode-spotify');
+        }
         document.getElementById('spotify-logo').classList.add('active');
         document.getElementById('soundcloud-logo').classList.remove('active');
         const ytBtn = document.getElementById('youtube-logo');
@@ -36,14 +40,20 @@ function switchMode(mode) {
     } else if (mode === 'soundcloud') {
         if (platformLogo) platformLogo.src = 'soundcloud-logo.png';
         if (platformText) platformText.textContent = 'SoundCloud Search';
-        searchBar.className = 'soundcloud';
+        if (searchBar) {
+            searchBar.classList.remove('mode-spotify', 'mode-youtube');
+            searchBar.classList.add('mode-soundcloud');
+        }
         document.getElementById('spotify-logo').classList.remove('active');
         document.getElementById('soundcloud-logo').classList.add('active');
         const ytBtn = document.getElementById('youtube-logo');
         if (ytBtn) ytBtn.classList.remove('active');
     } else if (mode === 'youtube') {
         if (platformText) platformText.textContent = 'YouTube Search';
-        searchBar.className = 'youtube';
+        if (searchBar) {
+            searchBar.classList.remove('mode-spotify', 'mode-soundcloud');
+            searchBar.classList.add('mode-youtube');
+        }
         document.getElementById('spotify-logo').classList.remove('active');
         document.getElementById('soundcloud-logo').classList.remove('active');
         const ytBtn = document.getElementById('youtube-logo');
@@ -98,81 +108,25 @@ async function performSearch(query) {
     searchResults.innerHTML = '<p class="loading">Searching...</p>';
 
     try {
+        // Abort any previous search to avoid race conditions
+        if (currentSearchController) currentSearchController.abort();
+        currentSearchController = new AbortController();
+        const signal = currentSearchController.signal;
+        // Unified provider search with internal redundancy per mode
         let results = [];
         let searchError = null;
-        let fallbackUsed = false;
-        
-        if (currentMode === 'spotify') {
-            try {
-                results = await searchSpotify(query);
-                if (!results || results.length === 0) {
-                    console.log('No Spotify results found, trying SoundCloud as fallback...');
-                    try {
-                        const scResults = await searchSoundCloud(query);
-                        if (scResults && scResults.length > 0) {
-                            results = scResults;
-                            fallbackUsed = true;
-                        }
-                    } catch (scError) {
-                        console.error('SoundCloud fallback failed:', scError);
-                    }
-                }
-            } catch (error) {
-                searchError = `Spotify search failed: ${error.message}`;
-                console.error(searchError);
-                
-                // Try SoundCloud as fallback
-                try {
-                    console.log('Spotify search failed, trying SoundCloud as fallback...');
-                    results = await searchSoundCloud(query);
-                    if (results && results.length > 0) {
-                        fallbackUsed = true;
-                    }
-                } catch (scError) {
-                    console.error('SoundCloud fallback also failed:', scError);
-                }
-            }
-        } else if (currentMode === 'soundcloud') {
-            try {
-                results = await searchSoundCloud(query);
-                
-                // If SoundCloud search returns nothing, fallback to Spotify silently
-                if (!results || results.length === 0) {
-                    console.log('No SoundCloud results, trying Spotify as fallback...');
-                    const spotifyResults = await searchSpotify(query);
-                    if (spotifyResults && spotifyResults.length > 0) {
-                        results = spotifyResults;
-                        fallbackUsed = true;
-                    }
-                }
-            } catch (error) {
-                searchError = `SoundCloud search failed: ${error.message}`;
-                console.error(searchError);
-                
-                // Fallback to Spotify search if SoundCloud fails
-                console.log('SoundCloud search failed, trying Spotify as fallback...');
-                try {
-                    results = await searchSpotify(query);
-                    if (results && results.length > 0) {
-                        fallbackUsed = true;
-                    }
-                } catch (spotifyError) {
-                    console.error('Spotify fallback also failed:', spotifyError);
-                }
-            }
-        } else if (currentMode === 'youtube') {
-            try {
-                results = await searchYouTube(query);
-            } catch (error) {
-                searchError = `YouTube search failed: ${error.message}`;
-            }
+        try {
+            results = await searchByMode(currentMode, query, { signal });
+        } catch (error) {
+            searchError = error?.message || 'Search failed';
         }
 
         // Clear previous results
         searchResults.innerHTML = '';
         
         // Show fallback notice if applicable
-        if (fallbackUsed) {
+        // The unified provider already attempted fallbacks; we no longer show a special notice
+        if (false) {
             const fallbackNotice = document.createElement('p');
             fallbackNotice.className = 'notice';
             fallbackNotice.innerText = currentMode === 'spotify' 
@@ -183,43 +137,53 @@ async function performSearch(query) {
 
         // Append search results
         if (results && results.length > 0) {
+            const fragment = document.createDocumentFragment();
             results.forEach((song, index) => {
                 const songElement = document.createElement('div');
                 songElement.classList.add('result-item');
-                
-                // Handle potential missing data more gracefully
-                const imageUrl = song.album && song.album.images && song.album.images[0] 
-                    ? song.album.images[0].url 
-                    : 'images/default.jpg';
-                
-                const artistName = song.artists && song.artists[0] 
-                    ? song.artists[0].name 
-                    : 'Unknown Artist';
-                
-                // Add platform indicator to results
+
+                const img = document.createElement('img');
+                const imageUrl = song?.album?.images?.[0]?.url || 'images/default.jpg';
+                img.src = imageUrl;
+                img.alt = song.name || 'Track artwork';
+
+                const info = document.createElement('div');
+                info.className = 'song-info';
+                const titleEl = document.createElement('div');
+                titleEl.className = 'song-title';
+                titleEl.textContent = song.name || 'Unknown Title';
+                const artistEl = document.createElement('div');
+                artistEl.className = 'song-artist';
+                artistEl.textContent = (song.artists && song.artists[0] ? song.artists[0].name : 'Unknown Artist');
+                const badge = document.createElement('span');
                 const platformClass = song.platform || 'spotify';
-                
-                songElement.innerHTML = `
-                    <img src="${imageUrl}" alt="${song.name}">
-                    <div class="song-info">
-                        <div class="song-title">${song.name || 'Unknown Title'}</div>
-                        <div class="song-artist">
-                            ${artistName}
-                            <span class="platform-badge ${platformClass}">${platformClass}</span>
-                        </div>
-                    </div>
-                    <div class="song-actions">
-                        <button class="play-now">Play</button>
-                        <button class="add-to-queue">+ Queue</button>
-                    </div>
-                `;
-                
-                // Add event listeners
-                songElement.querySelector('.play-now').addEventListener('click', () => loadSong(index, results));
-                songElement.querySelector('.add-to-queue').addEventListener('click', () => addToQueue(results[index]));
-                
-                searchResults.appendChild(songElement);
+                badge.className = `platform-badge ${platformClass}`;
+                badge.textContent = platformClass;
+                artistEl.appendChild(badge);
+                info.appendChild(titleEl);
+                info.appendChild(artistEl);
+
+                const actions = document.createElement('div');
+                actions.className = 'song-actions';
+                const playBtnEl = document.createElement('button');
+                playBtnEl.className = 'play-now';
+                playBtnEl.textContent = 'Play';
+                const queueBtnEl = document.createElement('button');
+                queueBtnEl.className = 'add-to-queue';
+                queueBtnEl.textContent = '+ Queue';
+                actions.appendChild(playBtnEl);
+                actions.appendChild(queueBtnEl);
+
+                songElement.appendChild(img);
+                songElement.appendChild(info);
+                songElement.appendChild(actions);
+
+                playBtnEl.addEventListener('click', () => loadSong(index, results));
+                queueBtnEl.addEventListener('click', () => addToQueue(results[index]));
+
+                fragment.appendChild(songElement);
             });
+            searchResults.appendChild(fragment);
             searchResults.style.display = 'block';
         } else if (searchError) {
             // Show error message if both primary and fallback search failed
@@ -385,14 +349,15 @@ function updateUIForSong(song) {
 
     // Add platform indicator
     const platformIndicator = document.createElement('span');
-    platformIndicator.className = `platform-indicator ${song.platform || 'spotify'}`;
-    platformIndicator.textContent = song.platform === 'soundcloud' ? 'SoundCloud' : 'Spotify';
+    const platform = song.platform || 'spotify';
+    platformIndicator.className = `platform-indicator ${platform}`;
+    platformIndicator.textContent = platform === 'soundcloud' ? 'SoundCloud' : (platform === 'youtube' ? 'YouTube' : 'Spotify');
     platformIndicator.style.cssText = `
         margin-left: 10px;
         padding: 2px 6px;
         border-radius: 3px;
         font-size: 0.8em;
-        background: ${song.platform === 'soundcloud' ? '#ff5500' : '#1db954'};
+        background: ${platform === 'soundcloud' ? '#ff5500' : (platform === 'youtube' ? '#ff0000' : '#1db954')};
         color: white;
     `;
     artist.appendChild(platformIndicator);

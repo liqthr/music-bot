@@ -6,7 +6,7 @@ const baseUrl = (typeof window !== 'undefined' && window.location && window.loca
  * @param {Object} spotifyTrack - Track object from Spotify search
  * @returns {Promise<Object>} - YouTube track object with playable URL
  */
-export async function findOnYouTube(spotifyTrack) {
+export async function findOnYouTube(spotifyTrack, options = {}) {
     if (!spotifyTrack) {
         console.error('No track provided to search on YouTube');
         return null;
@@ -24,7 +24,8 @@ export async function findOnYouTube(spotifyTrack) {
             {
                 headers: {
                     'Cache-Control': 'no-cache'
-                }
+                },
+                signal: options.signal
             }
         );
 
@@ -72,11 +73,12 @@ export async function findOnYouTube(spotifyTrack) {
  * @param {string} query
  * @returns {Promise<Array>} normalized results
  */
-export async function searchYouTube(query) {
+export async function searchYouTube(query, options = {}) {
     if (!query || query.trim() === '') return [];
     try {
         const response = await fetch(`${baseUrl}/youtube-search?q=${encodeURIComponent(query.trim())}`, {
-            headers: { 'Cache-Control': 'no-cache' }
+            headers: { 'Cache-Control': 'no-cache' },
+            signal: options.signal
         });
         if (!response.ok) return [];
         const data = await response.json();
