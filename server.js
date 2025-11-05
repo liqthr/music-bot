@@ -6,6 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import winston from 'winston';
 import { youtube_v3 } from '@googleapis/youtube';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 // Configure logging
 const logger = winston.createLogger({
@@ -48,7 +50,30 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Set up middleware
-app.use(cors());
+// CORS with an allowlist for production; permissive in local dev
+const allowlist = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow same-origin/no-origin
+    if (process.env.NODE_ENV !== 'production') return cb(null, true);
+    if (allowlist.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  }
+}));
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false // we serve third-party SDKs; CSP can be set at edge if needed
+}));
+
+// Basic rate limiting to protect external APIs and your deployment
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use(limiter);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
@@ -134,7 +159,11 @@ app.get('/auth', async (req, res) => {
 
 // Spotify search endpoint
 app.get('/search', async (req, res) => {
-  const query = req.query.q;
+  // Defensive input handling
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (query.length > 200) {
+    return res.status(400).json({ error: 'Query too long' });
+  }
   const accessToken = req.headers.authorization?.split(' ')[1];
 
   if (!query) {
@@ -178,10 +207,12 @@ app.get('/spotify-search', (req, res) => {
 
 // YouTube search endpoint
 app.get('/youtube-search', async (req, res) => {
-  const query = req.query.q;
-  
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   if (!query) {
     return res.status(400).json({ error: 'Search query is required' });
+  }
+  if (query.length > 200) {
+    return res.status(400).json({ error: 'Query too long' });
   }
   
   if (!process.env.YOUTUBE_API_KEY) {
@@ -239,7 +270,7 @@ app.get('/youtube-video/:id', async (req, res) => {
 
 // Primary SoundCloud search endpoint
 app.get('/soundcloud-search', async (req, res) => {
-  const query = req.query.q;
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   const clientId = process.env.SOUNDCLOUD_CLIENT_ID;
 
   if (!query) {
@@ -299,7 +330,7 @@ app.get('/soundcloud-search', async (req, res) => {
 
 // Alternative SoundCloud search endpoint using the public API
 app.get('/soundcloud-search-alt', async (req, res) => {
-  const query = req.query.q;
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   const clientId = process.env.SOUNDCLOUD_CLIENT_ID;
 
   if (!query || !clientId) {
@@ -424,6 +455,7 @@ app.get('/soundcloud-stream', async (req, res) => {
     }
     
     // Redirect client directly to the actual audio stream URL
+    res.setHeader('Cache-Control', 'no-store');
     res.redirect(302, streamResponse.data.url);
     
   } catch (error) {
@@ -451,17 +483,38 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Detailed health/config endpoint for operators
+app.get('/health/details', (req, res) => {
+  const details = {
+    env: process.env.NODE_ENV || 'development',
+    configured: {
+      SPOTIFY_CLIENT_ID: Boolean(process.env.SPOTIFY_CLIENT_ID),
+      SPOTIFY_CLIENT_SECRET: Boolean(process.env.SPOTIFY_CLIENT_SECRET),
+      YOUTUBE_API_KEY: Boolean(process.env.YOUTUBE_API_KEY),
+      SOUNDCLOUD_CLIENT_ID: Boolean(process.env.SOUNDCLOUD_CLIENT_ID)
+    },
+    corsAllowlistCount: (process.env.CORS_ORIGINS || '').split(',').filter(Boolean).length,
+    time: new Date().toISOString()
+  };
+  res.json(details);
+});
+
 // Error handler middleware
 app.use((err, req, res, next) => {
   logger.error('Unhandled error:', err);
   res.status(500).json({ error: 'Server error', message: err.message });
 });
 
-// Start server
-if (validateEnvVars()) {
+// Export the Express app for Vercel serverless functions
+// Vercel will invoke this as a serverless function
+export default app;
+
+// Start server only for local development (not on Vercel)
+// Vercel detects serverless functions automatically and doesn't use app.listen()
+if (process.env.VERCEL !== '1' && validateEnvVars()) {
   app.listen(port, () => {
     logger.info(`Server running on port ${port}`);
   });
-} else {
+} else if (process.env.VERCEL !== '1') {
   logger.error('Server not started due to missing environment variables');
 }
