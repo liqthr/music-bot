@@ -61,7 +61,10 @@ function switchMode(mode) {
     }
 
     document.getElementById('search-results').innerHTML = '';
-    searchBar.value = '';
+    // Safely clear search input if element exists
+    if (searchBar) {
+        searchBar.value = '';
+    }
 }
 
 // Element references
