@@ -49,7 +49,9 @@ async function getAccessToken() {
 
         accessToken = data.access_token;
         // Set expiration to 90% of the provided lifetime to ensure we refresh before expiration
-        tokenExpiration = Date.now() + ((data.expires_in || 3600) * 900);
+        // expires_in is in seconds, so convert to milliseconds (* 1000) then take 90% (* 0.9)
+        const expiresInSeconds = data.expires_in || 3600;
+        tokenExpiration = Date.now() + (expiresInSeconds * 1000 * 0.9);
 
         console.log('New token received and cached');
         return accessToken;
