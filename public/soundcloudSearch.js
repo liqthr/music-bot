@@ -44,7 +44,8 @@ export async function searchSoundCloud(query, options = {}) {
                         'Content-Type': 'application/json',
                         'Cache-Control': 'no-cache'
                     },
-                    signal: options.signal
+                    // Include timeout fallback to prevent indefinite hanging
+                    signal: options.signal || AbortSignal.timeout(10000) // 10 second timeout
                 }
             );
         }

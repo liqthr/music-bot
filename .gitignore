@@ -2,3 +2,8 @@
 spotify.env
 *.env
 .vercel
+tmp/
+*.flac
+*.mp3
+node_modules/
+.next/

@@ -43,6 +43,12 @@ export function Player({
     // Determine audio source
     let audioUrl = track.stream_url || track.preview_url
 
+    // Handle YouTube tracks - use our download endpoint
+    if (track.platform === 'youtube' && track.videoId) {
+      // Use FLAC for best quality, fallback to MP3 if FLAC not available
+      audioUrl = `/api/audio/download?videoId=${track.videoId}&format=flac`
+    }
+
     if (!audioUrl) {
       console.warn('No audio URL available for track:', track.name)
       return
@@ -106,16 +112,25 @@ export function Player({
     }
   }, [track, onDurationChange, onTimeUpdate, onNext])
 
-  // Handle play/pause
+  // Handle play/pause with proper error handling
   useEffect(() => {
     if (!audioRef.current) return
 
     const audio = audioRef.current
 
     if (isPlaying) {
-      audio.play().catch((error) => {
-        console.error('Playback error:', error)
-      })
+      // Use play() promise to handle abort errors gracefully
+      const playPromise = audio.play()
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .catch((error: any) => {
+            // Ignore AbortError - it's expected when play() is interrupted
+            if (error.name !== 'AbortError') {
+              console.error('Playback error:', error)
+            }
+          })
+      }
     } else {
       audio.pause()
     }

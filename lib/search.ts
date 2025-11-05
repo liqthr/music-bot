@@ -22,18 +22,20 @@ export async function searchSpotify(query: string, signal?: AbortSignal): Promis
 
     if (!data.tracks?.items) return []
 
-    return data.tracks.items.map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      artists: item.artists,
-      album: {
-        images: item.album.images,
-      },
-      preview_url: item.preview_url,
-      duration_ms: item.duration_ms,
-      platform: 'spotify' as const,
-      uri: item.uri,
-    }))
+    return data.tracks.items
+      .filter((item: any) => item.preview_url) // Only include tracks with preview URLs
+      .map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        artists: item.artists,
+        album: {
+          images: item.album.images,
+        },
+        preview_url: item.preview_url,
+        duration_ms: item.duration_ms,
+        platform: 'spotify' as const,
+        uri: item.uri,
+      }))
   } catch (error: any) {
     if (error.name === 'AbortError') throw error
     console.error('Spotify search error:', error)
@@ -130,6 +132,9 @@ export async function searchYouTube(query: string, signal?: AbortSignal): Promis
         },
         platform: 'youtube' as const,
         videoId: item.id.videoId,
+        // YouTube tracks use our download endpoint to get FLAC/MP3 audio
+        stream_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=flac`,
+        preview_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=mp3`,
       }))
   } catch (error: any) {
     if (error.name === 'AbortError') throw error
@@ -139,7 +144,8 @@ export async function searchYouTube(query: string, signal?: AbortSignal): Promis
 }
 
 /**
- * Unified search function with fallback
+ * Unified search function - only searches the specified mode, no automatic fallbacks
+ * This ensures users see results only from their selected platform
  */
 export async function searchByMode(
   mode: SearchMode,
@@ -154,29 +160,13 @@ export async function searchByMode(
     youtube: () => searchYouTube(query, signal),
   }
 
-  // Try primary provider first
+  // Only search the selected mode - no fallbacks
   try {
     const results = await searchFunctions[mode]()
-    if (results.length > 0) return results
+    return results
   } catch (error: any) {
     if (error.name === 'AbortError') throw error
-    console.warn(`Primary search (${mode}) failed:`, error)
+    console.warn(`Search (${mode}) failed:`, error)
+    return []
   }
-
-  // Try fallback providers without signal for independence
-  const fallbacks: Array<() => Promise<Track[]>> = []
-  if (mode !== 'spotify') fallbacks.push(() => searchSpotify(query))
-  if (mode !== 'soundcloud') fallbacks.push(() => searchSoundCloud(query))
-  if (mode !== 'youtube') fallbacks.push(() => searchYouTube(query))
-
-  for (const fallback of fallbacks) {
-    try {
-      const results = await fallback()
-      if (results.length > 0) return results
-    } catch (error) {
-      console.warn('Fallback search failed:', error)
-    }
-  }
-
-  return []
 }

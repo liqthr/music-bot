@@ -11,12 +11,23 @@ interface SearchResultsProps {
 }
 
 /**
+ * Check if a track can be played with the current player implementation
+ */
+function isTrackPlayable(track: Track): boolean {
+  // All tracks with stream_url or preview_url are playable
+  // YouTube tracks now have stream_url from our download endpoint
+  return !!(track.preview_url || track.stream_url)
+}
+
+/**
  * Search results component
  */
 export function SearchResults({ results, onPlay, onAddToQueue, isLoading }: SearchResultsProps) {
   const handlePlay = useCallback(
     (track: Track) => {
-      onPlay(track)
+      if (isTrackPlayable(track)) {
+        onPlay(track)
+      }
     },
     [onPlay]
   )
@@ -45,6 +56,7 @@ export function SearchResults({ results, onPlay, onAddToQueue, isLoading }: Sear
       {results.map((track) => {
         const imageUrl = track.album?.images?.[0]?.url || '/images/default.jpg'
         const artistName = track.artists?.[0]?.name || 'Unknown Artist'
+        const playable = isTrackPlayable(track)
 
         return (
           <div key={track.id} className="result-item">
@@ -54,6 +66,11 @@ export function SearchResults({ results, onPlay, onAddToQueue, isLoading }: Sear
               <div className="song-artist">
                 {artistName}
                 <span className={`platform-badge ${track.platform}`}>{track.platform}</span>
+                {!playable && (
+                  <span className="unplayable-badge" title="Preview not available">
+                    No Preview
+                  </span>
+                )}
               </div>
             </div>
             <div className="song-actions">
@@ -61,9 +78,11 @@ export function SearchResults({ results, onPlay, onAddToQueue, isLoading }: Sear
                 type="button"
                 className="play-now"
                 onClick={() => handlePlay(track)}
+                disabled={!playable}
                 aria-label={`Play ${track.name}`}
+                title={playable ? `Play ${track.name}` : 'Preview not available'}
               >
-                Play
+                {playable ? 'Play' : 'N/A'}
               </button>
               <button
                 type="button"

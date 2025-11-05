@@ -4,12 +4,13 @@ A modern music player built with Next.js 14, TypeScript, and React. Search and p
 
 ## Features
 
-- **Multi-platform Search**: Search across Spotify, SoundCloud, and YouTube
+- **Multi-platform Search**: Search across Spotify, SoundCloud, and YouTube (mode-specific, no automatic fallbacks)
+- **High-Quality Audio**: Download and play YouTube audio in FLAC (lossless) or MP3 (high-quality) formats
 - **FLAC Support**: Native browser FLAC support via HTML5 audio (no external libraries needed)
 - **Modern UI**: Beautiful, responsive interface with atmospheric animations
 - **Queue Management**: Add tracks to queue and manage playback
 - **No Authentication Required**: Search-only functionality - no login needed
-- **Resilient Fallbacks**: Automatic fallback to alternative providers if search fails
+- **Platform-Specific Results**: Each search mode shows results only from the selected platform
 
 ## Tech Stack
 
@@ -26,6 +27,26 @@ A modern music player built with Next.js 14, TypeScript, and React. Search and p
 
 - Node.js 18+ 
 - npm or yarn
+- **yt-dlp** (for YouTube audio download) - [Installation Guide](https://github.com/yt-dlp/yt-dlp#installation)
+- **ffmpeg** (for audio conversion) - [Download](https://ffmpeg.org/download.html)
+
+**Installing yt-dlp and ffmpeg:**
+
+**macOS (using Homebrew):**
+```bash
+brew install yt-dlp ffmpeg
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt update
+sudo apt install yt-dlp ffmpeg
+```
+
+**Windows:**
+- Download yt-dlp from: https://github.com/yt-dlp/yt-dlp/releases
+- Download ffmpeg from: https://ffmpeg.org/download.html
+- Add both to your system PATH
 
 ### Installation
 
@@ -65,6 +86,7 @@ music-bot/
 ├── app/
 │   ├── api/              # Next.js API routes
 │   │   ├── search/       # Search endpoints
+│   │   ├── audio/        # Audio download/conversion
 │   │   └── soundcloud/   # SoundCloud stream resolver
 │   ├── layout.tsx        # Root layout
 │   ├── page.tsx          # Main player page
@@ -92,13 +114,25 @@ Each platform has its own search endpoint:
 ### Audio Playback
 
 The player component uses native HTML5 audio:
+- **Spotify**: Uses preview URLs (30-second previews, if available)
+- **SoundCloud**: Streams full tracks via SoundCloud API
+- **YouTube**: Downloads and converts audio to FLAC (lossless) or MP3 (192kbps) using yt-dlp
 - Native FLAC support in modern browsers (Chrome, Firefox, Safari, Edge)
-- Support for preview URLs and stream URLs
 - Automatic format detection and playback
 
-### Search Fallbacks
+### Audio Download & Conversion
 
-If a primary search provider fails or returns no results, the system automatically tries alternative providers to ensure users always get results.
+YouTube tracks are automatically downloaded and converted:
+- **FLAC Format**: Lossless audio quality (default)
+- **MP3 Format**: High-quality 192kbps encoding
+- Files are cached to avoid re-downloading
+- Conversion handled by yt-dlp and ffmpeg
+
+### Search Behavior
+
+- **Mode-Specific Results**: Each search mode (Spotify/SoundCloud/YouTube) shows results only from that platform
+- **No Automatic Fallbacks**: Results are filtered to match the selected platform
+- **Quality Filtering**: Spotify results only include tracks with available preview URLs
 
 ## Development
 
@@ -124,6 +158,12 @@ This project is ready for deployment on Vercel:
 3. Add environment variables in Vercel dashboard
 4. Deploy!
 
+**Note**: YouTube audio download requires yt-dlp and ffmpeg installed on the server. For Vercel/serverless environments, consider:
+- Using a Docker container with yt-dlp pre-installed
+- Using an external API service for audio extraction
+- Running a separate server/container for audio processing
+- Using Edge Functions with a custom runtime (if supported)
+
 ## Environment Variables
 
 | Variable | Description | Required |
@@ -135,10 +175,12 @@ This project is ready for deployment on Vercel:
 
 ## Notes
 
-- Spotify search uses client credentials flow (no user authentication required)
-- SoundCloud tracks require stream URL resolution via `/api/soundcloud/stream`
-- YouTube search is limited to music category videos
-- FLAC support is provided natively by modern browsers (no external libraries needed)
+- **Spotify**: Only tracks with preview URLs are shown (30-second previews). Full tracks require Spotify Premium and Web Playback SDK integration.
+- **SoundCloud**: Full tracks are streamed via SoundCloud API
+- **YouTube**: Audio is downloaded and converted using yt-dlp. Requires yt-dlp and ffmpeg installed on server.
+- **Search Modes**: Each mode shows results only from the selected platform (no automatic fallbacks)
+- **FLAC Support**: Provided natively by modern browsers (no external libraries needed)
+- **Server Requirements**: For YouTube audio download, ensure yt-dlp and ffmpeg are installed and accessible in your system PATH
 
 ## License
 
