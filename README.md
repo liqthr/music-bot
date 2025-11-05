@@ -1,11 +1,11 @@
 # AURALIS - Music Player
 
-A modern music player built with Next.js 14, TypeScript, and React. Search and play music from Spotify, SoundCloud, and YouTube using HTML5 audio with Aurora.js for FLAC support.
+A modern music player built with Next.js 14, TypeScript, and React. Search and play music from Spotify, SoundCloud, and YouTube using native HTML5 audio with FLAC support.
 
 ## Features
 
 - **Multi-platform Search**: Search across Spotify, SoundCloud, and YouTube
-- **FLAC Support**: Aurora.js integration for high-quality FLAC audio playback
+- **FLAC Support**: Native browser FLAC support via HTML5 audio (no external libraries needed)
 - **Modern UI**: Beautiful, responsive interface with atmospheric animations
 - **Queue Management**: Add tracks to queue and manage playback
 - **No Authentication Required**: Search-only functionality - no login needed
@@ -16,7 +16,7 @@ A modern music player built with Next.js 14, TypeScript, and React. Search and p
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
 - **UI**: React 18
-- **Audio**: HTML5 Audio + Aurora.js (FLAC support)
+- **Audio**: HTML5 Audio (native FLAC support in modern browsers)
 - **Styling**: CSS Modules with custom properties
 - **API Integration**: Spotify, SoundCloud, YouTube APIs
 
@@ -91,10 +91,10 @@ Each platform has its own search endpoint:
 
 ### Audio Playback
 
-The player component uses HTML5 audio with Aurora.js for FLAC support:
-- Automatic FLAC decoder registration
-- Fallback to standard HTML5 audio for other formats
+The player component uses native HTML5 audio:
+- Native FLAC support in modern browsers (Chrome, Firefox, Safari, Edge)
 - Support for preview URLs and stream URLs
+- Automatic format detection and playback
 
 ### Search Fallbacks
 
@@ -138,7 +138,7 @@ This project is ready for deployment on Vercel:
 - Spotify search uses client credentials flow (no user authentication required)
 - SoundCloud tracks require stream URL resolution via `/api/soundcloud/stream`
 - YouTube search is limited to music category videos
-- Aurora.js is loaded dynamically only on the client side
+- FLAC support is provided natively by modern browsers (no external libraries needed)
 
 ## License
 

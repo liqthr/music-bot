@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Track } from '@/lib/types'
 
 interface PlayerProps {
@@ -17,7 +17,8 @@ interface PlayerProps {
 }
 
 /**
- * Audio player component using Aurora.js for FLAC support
+ * Audio player component using native HTML5 audio
+ * Modern browsers support FLAC natively, so no external library is needed
  */
 export function Player({
   track,
@@ -32,31 +33,6 @@ export function Player({
   seekTo,
 }: PlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const auroraRef = useRef<any>(null)
-  const [isInitialized, setIsInitialized] = useState(false)
-
-  // Initialize Aurora.js for FLAC support
-  useEffect(() => {
-    if (typeof window === 'undefined' || isInitialized) return
-
-    const initAurora = async () => {
-      try {
-        // Dynamically import Aurora.js only on client
-        const Aurora = (await import('aurora.js')).default
-        const FLACDecoder = (await import('aurora.js-flac')).default
-
-        // Register FLAC decoder
-        Aurora.registerDecoder(FLACDecoder, ['flac'])
-
-        setIsInitialized(true)
-      } catch (error) {
-        console.warn('Aurora.js initialization failed, falling back to HTML5 audio:', error)
-        setIsInitialized(true) // Still mark as initialized to allow fallback
-      }
-    }
-
-    initAurora()
-  }, [isInitialized])
 
   // Load track when it changes
   useEffect(() => {
@@ -64,67 +40,71 @@ export function Player({
 
     const audio = audioRef.current
 
-    const loadTrack = async () => {
-      try {
-        // Determine audio source
-        let audioUrl = track.stream_url || track.preview_url
+    // Determine audio source
+    let audioUrl = track.stream_url || track.preview_url
 
-        if (!audioUrl) {
-          console.warn('No audio URL available for track:', track.name)
-          return
-        }
+    if (!audioUrl) {
+      console.warn('No audio URL available for track:', track.name)
+      return
+    }
 
-        // For SoundCloud, resolve stream URL if needed
-        if (track.platform === 'soundcloud' && track.permalink_url && !audioUrl.includes('/api/soundcloud/stream')) {
-          audioUrl = `/api/soundcloud/stream?url=${encodeURIComponent(track.permalink_url)}`
-        }
+    // For SoundCloud, resolve stream URL if needed
+    if (track.platform === 'soundcloud' && track.permalink_url && !audioUrl.includes('/api/soundcloud/stream')) {
+      audioUrl = `/api/soundcloud/stream?url=${encodeURIComponent(track.permalink_url)}`
+    }
 
-        // Set audio source
-        audio.src = audioUrl
-        audio.load()
-
-        // Set up event listeners
-        const handleLoadedMetadata = () => {
-          if (audio.duration) {
-            onDurationChange(audio.duration)
-          }
-        }
-
-        const handleTimeUpdate = () => {
-          onTimeUpdate(audio.currentTime)
-        }
-
-        const handleEnded = () => {
-          onNext()
-        }
-
-        const handleError = (e: ErrorEvent) => {
-          console.error('Audio playback error:', e)
-          // Try Aurora.js fallback for FLAC files if HTML5 fails
-          if (isInitialized && audioUrl.endsWith('.flac')) {
-            console.log('Attempting Aurora.js playback for FLAC file')
-            // Aurora.js integration would go here if needed
-          }
-        }
-
-        audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-        audio.addEventListener('timeupdate', handleTimeUpdate)
-        audio.addEventListener('ended', handleEnded)
-        audio.addEventListener('error', handleError)
-
-        return () => {
-          audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-          audio.removeEventListener('timeupdate', handleTimeUpdate)
-          audio.removeEventListener('ended', handleEnded)
-          audio.removeEventListener('error', handleError)
-        }
-      } catch (error) {
-        console.error('Error loading track:', error)
+    // Set up event listeners
+    const handleLoadedMetadata = () => {
+      if (audio.duration && !isNaN(audio.duration)) {
+        onDurationChange(audio.duration)
       }
     }
 
-    loadTrack()
-  }, [track, isInitialized, onDurationChange, onTimeUpdate, onNext])
+    const handleTimeUpdate = () => {
+      if (!isNaN(audio.currentTime)) {
+        onTimeUpdate(audio.currentTime)
+      }
+    }
+
+    const handleEnded = () => {
+      onNext()
+    }
+
+    const handleError = (e: Event) => {
+      console.error('Audio playback error:', e)
+      // Modern browsers support FLAC natively, so this should work
+      // If it fails, the error will be logged for debugging
+    }
+
+    const handleCanPlay = () => {
+      // Ensure duration is set when audio can play
+      if (audio.duration && !isNaN(audio.duration)) {
+        onDurationChange(audio.duration)
+      }
+    }
+
+    // Set audio source
+    audio.src = audioUrl
+    audio.load()
+
+    // Add event listeners
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('canplay', handleCanPlay)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('error', handleError)
+
+    // Cleanup function
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('canplay', handleCanPlay)
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('error', handleError)
+      audio.pause()
+      audio.src = ''
+    }
+  }, [track, onDurationChange, onTimeUpdate, onNext])
 
   // Handle play/pause
   useEffect(() => {
@@ -157,6 +137,7 @@ export function Player({
     <audio
       ref={audioRef}
       preload="metadata"
+      crossOrigin="anonymous"
       style={{ display: 'none' }}
     />
   )
