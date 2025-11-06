@@ -7,6 +7,35 @@ const baseUrl = window.location.hostname === 'localhost' || window.location.host
     : window.location.origin;
 
 /**
+ * Creates an abort signal with timeout support, with fallback for browsers without AbortSignal.timeout
+ * @param {number} timeoutMs - Timeout in milliseconds (default: 10000)
+ * @param {AbortSignal} [userSignal] - Optional user-provided signal to use instead
+ * @returns {{signal: AbortSignal, cleanup: function}} - Signal and cleanup function
+ */
+function createTimeoutSignal(timeoutMs = 10000, userSignal = null) {
+    // Prefer user-provided signal if available
+    if (userSignal) {
+        return { signal: userSignal, cleanup: () => {} };
+    }
+
+    // Use AbortSignal.timeout if available (modern browsers)
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+        return { signal: AbortSignal.timeout(timeoutMs), cleanup: () => {} };
+    }
+
+    // Fallback: create AbortController with setTimeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, timeoutMs);
+
+    return {
+        signal: controller.signal,
+        cleanup: () => clearTimeout(timeoutId)
+    };
+}
+
+/**
  * Searches SoundCloud for tracks matching the query
  * @param {string} query - The search query
  * @returns {Promise<Array>} - Array of tracks matching the query
@@ -19,34 +48,48 @@ export async function searchSoundCloud(query, options = {}) {
     }
 
     try {
-        // First attempt - standard endpoint
-        let response = await fetch(
-            `${baseUrl}/soundcloud-search?q=${encodeURIComponent(query.trim())}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                // Add timeout for better error handling
-                signal: options.signal || AbortSignal.timeout(10000) // 10 second timeout
-            }
-        );
+        // Create timeout signal with fallback support
+        const { signal: firstSignal, cleanup: firstCleanup } = createTimeoutSignal(10000, options.signal);
 
-        // If first attempt fails with 500, try alternative endpoint
-        if (!response.ok && response.status === 500) {
-            console.warn('Primary SoundCloud endpoint failed, trying fallback...');
+        // First attempt - standard endpoint
+        let response;
+        try {
             response = await fetch(
-                `${baseUrl}/soundcloud-search-alt?q=${encodeURIComponent(query.trim())}`,
+                `${baseUrl}/soundcloud-search?q=${encodeURIComponent(query.trim())}`,
                 {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                         'Cache-Control': 'no-cache'
                     },
-                    signal: options.signal
+                    signal: firstSignal
                 }
             );
+        } finally {
+            // Clean up timeout if we created one
+            firstCleanup();
+        }
+
+        // If first attempt fails with 500, try alternative endpoint
+        if (!response.ok && response.status === 500) {
+            console.warn('Primary SoundCloud endpoint failed, trying fallback...');
+            const { signal: fallbackSignal, cleanup: fallbackCleanup } = createTimeoutSignal(10000, options.signal);
+            try {
+                response = await fetch(
+                    `${baseUrl}/soundcloud-search-alt?q=${encodeURIComponent(query.trim())}`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Cache-Control': 'no-cache'
+                        },
+                        signal: fallbackSignal
+                    }
+                );
+            } finally {
+                // Clean up timeout if we created one
+                fallbackCleanup();
+            }
         }
 
         // Better error handling with detailed logging

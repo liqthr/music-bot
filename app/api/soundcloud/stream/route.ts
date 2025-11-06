@@ -8,6 +8,7 @@ import axios from 'axios'
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const trackUrl = searchParams.get('url')
+  const format = searchParams.get('format') // 'json' to return JSON, otherwise redirect
 
   if (!trackUrl) {
     return NextResponse.json(
@@ -69,22 +70,60 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Find progressive MP3 stream or HLS fallback
-    const progressiveStream = track.media.transcodings.find(
+    // Find progressive MP3 streams, prioritizing HQ
+    const allProgressiveStreams = track.media.transcodings.filter(
       (t: any) => t.format?.protocol === 'progressive' && t.format?.mime_type?.includes('audio/mpeg')
     )
 
-    const hlsStream = !progressiveStream
-      ? track.media.transcodings.find((t: any) => t.format?.protocol === 'hls')
-      : null
+    // First try: HQ progressive MP3 (quality === "hq")
+    let streamInfo = allProgressiveStreams.find((t: any) => t.quality === 'hq')
 
-    const streamInfo = progressiveStream || hlsStream
+    // Second try: Standard progressive MP3 (quality === "sq")
+    if (!streamInfo) {
+      streamInfo = allProgressiveStreams.find((t: any) => t.quality === 'sq')
+    }
+
+    // Third try: Any progressive MP3 without explicit quality (fallback)
+    if (!streamInfo) {
+      streamInfo = allProgressiveStreams.find((t: any) => !t.quality)
+    }
+
+    // Fourth try: Any progressive MP3 (last resort)
+    if (!streamInfo && allProgressiveStreams.length > 0) {
+      streamInfo = allProgressiveStreams[0]
+    }
+
+    // Fifth try: HLS stream as last resort
+    if (!streamInfo) {
+      streamInfo = track.media.transcodings.find((t: any) => t.format?.protocol === 'hls')
+    }
 
     if (!streamInfo) {
       return NextResponse.json(
         { error: 'No suitable stream format found' },
         { status: 404 }
       )
+    }
+
+    // Determine quality and bitrate
+    // Note: Bitrate values are estimates - actual codec/bitrate may vary
+    let quality: 'hq' | 'standard' | 'preview' | 'low' = 'standard'
+    let bitrate: number | undefined
+
+    // Use streamInfo-provided bitrate if available, otherwise use estimates
+    if (streamInfo.bitrate) {
+      bitrate = streamInfo.bitrate
+    } else {
+      // Approximate defaults (estimates only)
+      if (streamInfo.quality === 'hq') {
+        quality = 'hq'
+        bitrate = 256 // Estimated: HQ typically ~256 kbps (may be AAC or MP3)
+      } else if (streamInfo.quality === 'sq') {
+        quality = 'standard'
+        bitrate = 128 // Estimated: Standard typically ~128 kbps
+      } else if (streamInfo.quality) {
+        quality = streamInfo.quality as 'preview' | 'low'
+      }
     }
 
     // Get actual stream URL
@@ -104,8 +143,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Redirect to stream URL with no-cache header
-    return NextResponse.redirect(streamResponse.data.url, {
+    const streamUrl = streamResponse.data.url
+
+    // If format=json, return JSON with stream URL and quality info
+    if (format === 'json') {
+      return NextResponse.json(
+        {
+          url: streamUrl,
+          quality,
+          bitrate,
+        },
+        {
+          headers: {
+            'Cache-Control': 'no-store',
+          },
+        }
+      )
+    }
+
+    // Otherwise, redirect to stream URL with no-cache header
+    return NextResponse.redirect(streamUrl, {
       headers: {
         'Cache-Control': 'no-store',
       },
