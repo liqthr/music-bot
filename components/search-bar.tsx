@@ -410,20 +410,20 @@ export function SearchBar({ onSearch, onModeChange, currentMode, isLoading, onFi
             <div className="operator-help-section">
               <h5>Quoted Phrases</h5>
               <p>Use quotes for exact phrase matching</p>
-              <p className="operator-example">Example: <code>"Bohemian Rhapsody"</code></p>
+              <p className="operator-example">Example: <code>&quot;Bohemian Rhapsody&quot;</code></p>
             </div>
 
             <div className="operator-help-section">
               <h5>Field-Specific Search</h5>
               <ul>
                 <li><code>artist:Queen</code> - Search by artist</li>
-                <li><code>album:"A Night at the Opera"</code> - Search by album</li>
+                <li><code>album:&quot;A Night at the Opera&quot;</code> - Search by album</li>
                 <li><code>year:1975</code> - Search by year</li>
                 <li><code>year:&gt;1970</code> - Year greater than 1970</li>
                 <li><code>duration:180</code> - Duration in seconds</li>
                 <li><code>duration:&gt;300</code> - Duration greater than 5 minutes</li>
               </ul>
-              <p className="operator-example">Example: <code>artist:"Queen" year:1975</code></p>
+              <p className="operator-example">Example: <code>artist:&quot;Queen&quot; year:1975</code></p>
             </div>
 
             <div className="operator-help-section">
@@ -435,9 +435,9 @@ export function SearchBar({ onSearch, onModeChange, currentMode, isLoading, onFi
             <div className="operator-help-section">
               <h5>Complex Examples</h5>
               <ul>
-                <li><code>artist:"The Beatles" AND year:&gt;1965</code></li>
+                <li><code>artist:&quot;The Beatles&quot; AND year:&gt;1965</code></li>
                 <li><code>(rock OR metal) NOT country</code></li>
-                <li><code>"Stairway to Heaven" OR "Bohemian Rhapsody"</code></li>
+                <li><code>&quot;Stairway to Heaven&quot; OR &quot;Bohemian Rhapsody&quot;</code></li>
               </ul>
             </div>
           </div>
