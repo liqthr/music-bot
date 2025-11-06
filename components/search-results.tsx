@@ -11,7 +11,13 @@ interface SearchResultsProps {
 }
 
 /**
- * Check if a track can be played with the current player implementation
+ * Determine whether a track is playable by the current player.
+ *
+ * Tracks are considered playable if they provide either a `preview_url` or a `stream_url`.
+ * (This includes tracks whose `stream_url` is supplied by the download endpoint, e.g., YouTube.)
+ *
+ * @param track - The track to evaluate for playability
+ * @returns `true` if the track has a `preview_url` or `stream_url`, `false` otherwise.
  */
 function isTrackPlayable(track: Track): boolean {
   // All tracks with stream_url or preview_url are playable
@@ -20,7 +26,13 @@ function isTrackPlayable(track: Track): boolean {
 }
 
 /**
- * Search results component
+ * Render a list of track search results with per-track play and queue actions.
+ *
+ * @param results - Array of tracks to display.
+ * @param onPlay - Callback invoked with a track when the user requests playback; it will only be called for tracks that are playable (have a preview or stream URL).
+ * @param onAddToQueue - Callback invoked with a track to add it to the queue.
+ * @param isLoading - When true, render a "Searching..." placeholder instead of results.
+ * @returns The search results container JSX or `null` when there are no results to render.
  */
 export function SearchResults({ results, onPlay, onAddToQueue, isLoading }: SearchResultsProps) {
   const handlePlay = useCallback(

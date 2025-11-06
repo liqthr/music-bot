@@ -7,9 +7,16 @@ const baseUrl = window.location.hostname === 'localhost' || window.location.host
     : window.location.origin;
 
 /**
- * Searches SoundCloud for tracks matching the query
- * @param {string} query - The search query
- * @returns {Promise<Array>} - Array of tracks matching the query
+ * Search SoundCloud for tracks matching the query and return them in a normalized format.
+ * 
+ * Accepts plain query strings and will attempt a primary endpoint then a fallback endpoint
+ * if the primary returns a 500. Requests use a 10-second timeout when no external AbortSignal
+ * is provided.
+ * 
+ * @param {string} query - The search query string.
+ * @param {Object} [options] - Optional settings.
+ * @param {AbortSignal} [options.signal] - Optional abort signal to cancel the request; if omitted a 10s timeout is applied.
+ * @returns {Array<Object>} Array of normalized track objects with keys: `id`, `name`, `artists` (array of {name}), `album.images` (array of {url}), `duration_ms`, `preview_url`, `platform`, and `permalink_url`.
  */
 export async function searchSoundCloud(query, options = {}) {
     console.log('searchSoundCloud called with query:', query);
