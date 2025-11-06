@@ -224,9 +224,19 @@ function checkAPIRoutes() {
         issues.push(`${route}: Missing NextRequest or NextResponse imports`)
       }
 
-      // Check for unused axios imports
-      if (content.includes("import axios") && !content.includes('axios(')) {
-        issues.push(`${route}: Unused axios import`)
+      // Check for unused axios imports (more thorough check)
+      if (content.includes("import axios")) {
+        // Check if axios is actually used (not just imported)
+        const axiosUsagePatterns = [
+          /axios\.(get|post|put|delete|patch|request)\(/,
+          /axios\(/,
+          /await axios\./,
+          /axios\.create\(/,
+        ]
+        const isUsed = axiosUsagePatterns.some(pattern => pattern.test(content))
+        if (!isUsed) {
+          issues.push(`${route}: Unused axios import`)
+        }
       }
     } catch (error) {
       issues.push(`${route}: ${error.message}`)

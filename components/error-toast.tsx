@@ -24,6 +24,31 @@ interface ErrorToastProps {
 export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
+  const handleDismiss = useCallback(
+    (id: string) => {
+      setToasts((prev) => {
+        const updated = prev.map((toast) => {
+          if (toast.id === id) {
+            // Clear timer if exists
+            if (toast.timerId) {
+              clearTimeout(toast.timerId)
+            }
+            return { ...toast, visible: false, timerId: undefined }
+          }
+          return toast
+        })
+        return updated
+      })
+
+      // Remove from state after animation
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((toast) => toast.id !== id))
+        onDismiss(id)
+      }, 300)
+    },
+    [onDismiss]
+  )
+
   // Add new errors to toast queue
   useEffect(() => {
     if (errors.length === 0) return
@@ -64,31 +89,6 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       timers.forEach((timer) => clearTimeout(timer))
     }
   }, [toasts, handleDismiss])
-
-  const handleDismiss = useCallback(
-    (id: string) => {
-      setToasts((prev) => {
-        const updated = prev.map((toast) => {
-          if (toast.id === id) {
-            // Clear timer if exists
-            if (toast.timerId) {
-              clearTimeout(toast.timerId)
-            }
-            return { ...toast, visible: false, timerId: undefined }
-          }
-          return toast
-        })
-        return updated
-      })
-
-      // Remove from state after animation
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((toast) => toast.id !== id))
-        onDismiss(id)
-      }, 300)
-    },
-    [onDismiss]
-  )
 
   const getSeverityClass = (severity: ErrorSeverity): string => {
     switch (severity) {

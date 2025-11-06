@@ -89,7 +89,7 @@ export function SearchFiltersComponent({ filters, onFiltersChange, isOpen, onTog
       ...localFilters,
       duration: {
         ...localFilters.duration,
-        preset: 'custom',
+        preset: 'custom' as DurationPreset,
         custom,
       },
     }

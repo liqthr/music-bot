@@ -75,7 +75,7 @@ export function autoSaveQueue(tracks: Track[], repeatMode: RepeatMode): void {
  * @returns Auto-saved queue or null
  */
 export function getAutoSavedQueue(): SavedQueue | null {
-  return getItem<SavedQueue>(AUTOSAVE_QUEUE_KEY, null)
+  return getItem<SavedQueue>(AUTOSAVE_QUEUE_KEY) ?? null
 }
 
 /**
