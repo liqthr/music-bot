@@ -141,207 +141,209 @@ function getErrorMessage(error: any, retryCount: number): ErrorInfo {
 }
 
 /**
- * Error handler class with retry logic and exponential backoff
+ * Log error with context
  */
-export class ErrorHandler {
-  private retryConfig: RetryConfig
-  private onErrorCallback?: (error: ErrorInfo) => void
-  private onRetryCallback?: (attempt: number, maxAttempts: number) => void
-  private onRetryCompleteCallback?: (success: boolean) => void
-
-  constructor(config?: Partial<RetryConfig>) {
-    this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...config }
+function logError(
+  error: any,
+  track: Track | undefined,
+  retryCount: number | undefined,
+  onErrorCallback?: (error: ErrorInfo) => void
+): ErrorInfo {
+  const errorInfo = getErrorMessage(error, retryCount || 0)
+  if (track) {
+    errorInfo.track = track
   }
 
-  /**
-   * Set callback for error notifications
-   */
-  setOnError(callback: (error: ErrorInfo) => void) {
-    this.onErrorCallback = callback
-  }
+  console.error('[ErrorHandler]', {
+    type: errorInfo.type,
+    message: errorInfo.message,
+    track: track ? `${track.name} - ${track.artists[0]?.name || 'Unknown'}` : 'N/A',
+    platform: track?.platform || 'N/A',
+    retryCount: retryCount || 0,
+    timestamp: new Date(errorInfo.timestamp).toISOString(),
+    originalError: error,
+  })
 
-  /**
-   * Set callback for retry status updates
-   */
-  setOnRetry(callback: (attempt: number, maxAttempts: number) => void) {
-    this.onRetryCallback = callback
-  }
+  return errorInfo
+}
 
-  /**
-   * Set callback for retry completion
-   */
-  setOnRetryComplete(callback: (success: boolean) => void) {
-    this.onRetryCompleteCallback = callback
-  }
+/**
+ * Create error handler with retry logic and exponential backoff
+ */
+export function createErrorHandler(config?: Partial<RetryConfig>) {
+  const retryConfig: RetryConfig = { ...DEFAULT_RETRY_CONFIG, ...config }
+  let onErrorCallback: ((error: ErrorInfo) => void) | undefined
+  let onRetryCallback: ((attempt: number, maxAttempts: number) => void) | undefined
+  let onRetryCompleteCallback: ((success: boolean) => void) | undefined
 
-  /**
-   * Log error with context
-   */
-  private logError(error: any, track?: Track, retryCount?: number) {
-    const errorInfo = getErrorMessage(error, retryCount || 0)
-    if (track) {
-      errorInfo.track = track
-    }
+  return {
+    /**
+     * Set callback for error notifications
+     */
+    setOnError(callback: (error: ErrorInfo) => void) {
+      onErrorCallback = callback
+    },
 
-    console.error('[ErrorHandler]', {
-      type: errorInfo.type,
-      message: errorInfo.message,
-      track: track ? `${track.name} - ${track.artists[0]?.name || 'Unknown'}` : 'N/A',
-      platform: track?.platform || 'N/A',
-      retryCount: retryCount || 0,
-      timestamp: new Date(errorInfo.timestamp).toISOString(),
-      originalError: error,
-    })
+    /**
+     * Set callback for retry status updates
+     */
+    setOnRetry(callback: (attempt: number, maxAttempts: number) => void) {
+      onRetryCallback = callback
+    },
 
-    return errorInfo
-  }
+    /**
+     * Set callback for retry completion
+     */
+    setOnRetryComplete(callback: (success: boolean) => void) {
+      onRetryCompleteCallback = callback
+    },
 
-  /**
-   * Retry a function with exponential backoff
-   */
-  async retry<T>(
-    fn: () => Promise<T>,
-    track?: Track,
-    onRetry?: (attempt: number) => void
-  ): Promise<T> {
-    let lastError: any = null
-    const maxAttempts = this.retryConfig.maxAttempts
+    /**
+     * Retry a function with exponential backoff
+     */
+    async retry<T>(
+      fn: () => Promise<T>,
+      track?: Track,
+      onRetry?: (attempt: number) => void
+    ): Promise<T> {
+      let lastError: any = null
+      const maxAttempts = retryConfig.maxAttempts
 
-    for (let attempt = 0; attempt <= maxAttempts; attempt++) {
-      try {
-        // Log error if this is a retry attempt
-        if (attempt > 0) {
-          const errorInfo = this.logError(lastError, track, attempt)
-          if (this.onErrorCallback) {
-            this.onErrorCallback(errorInfo)
+      for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+        try {
+          // Log error if this is a retry attempt
+          if (attempt > 0) {
+            const errorInfo = logError(lastError, track, attempt, onErrorCallback)
+            if (onErrorCallback) {
+              onErrorCallback(errorInfo)
+            }
+            if (onRetryCallback) {
+              onRetryCallback(attempt, maxAttempts)
+            }
+            if (onRetry) {
+              onRetry(attempt)
+            }
           }
-          if (this.onRetryCallback) {
-            this.onRetryCallback(attempt, maxAttempts)
+
+          // Execute the function
+          const result = await fn()
+          
+          // Success - log if it was a retry
+          if (attempt > 0) {
+            console.log(`[ErrorHandler] Retry successful after ${attempt} attempt(s)`)
+            if (onRetryCompleteCallback) {
+              onRetryCompleteCallback(true)
+            }
           }
-          if (onRetry) {
-            onRetry(attempt)
+
+          return result
+        } catch (error: any) {
+          lastError = error
+
+          // Don't retry on certain errors (404, 403) - non-retryable on any attempt
+          const errorInfo = getErrorMessage(error, attempt)
+          if (errorInfo.type === 'not_found' || errorInfo.type === 'forbidden') {
+            // Log and notify immediately for non-retryable errors
+            const loggedError = logError(error, track, attempt, onErrorCallback)
+            if (onErrorCallback) {
+              onErrorCallback(loggedError)
+            }
+            if (onRetryCompleteCallback) {
+              onRetryCompleteCallback(false)
+            }
+            throw error
           }
+
+          // If this was the last attempt, fail
+          if (attempt >= maxAttempts) {
+            const loggedError = logError(error, track, attempt, onErrorCallback)
+            if (onErrorCallback) {
+              onErrorCallback(loggedError)
+            }
+            if (onRetryCompleteCallback) {
+              onRetryCompleteCallback(false)
+            }
+            throw error
+          }
+
+          // Calculate delay for next retry
+          // Handle empty delays array first
+          if (retryConfig.delays.length === 0) {
+            console.warn('Retry delays array is empty, using default 1000ms delay')
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+            continue
+          }
+          
+          // Use safe index to prevent out-of-bounds access
+          const delayIndex = Math.max(0, Math.min(attempt + 1, retryConfig.delays.length - 1))
+          const delay = retryConfig.delays[delayIndex]
+          
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, delay))
         }
-
-        // Execute the function
-        const result = await fn()
-        
-        // Success - log if it was a retry
-        if (attempt > 0) {
-          console.log(`[ErrorHandler] Retry successful after ${attempt} attempt(s)`)
-          if (this.onRetryCompleteCallback) {
-            this.onRetryCompleteCallback(true)
-          }
-        }
-
-        return result
-      } catch (error: any) {
-        lastError = error
-
-        // Don't retry on certain errors (404, 403) - non-retryable on any attempt
-        const errorInfo = getErrorMessage(error, attempt)
-        if (errorInfo.type === 'not_found' || errorInfo.type === 'forbidden') {
-          // Log and notify immediately for non-retryable errors
-          const loggedError = this.logError(error, track, attempt)
-          if (this.onErrorCallback) {
-            this.onErrorCallback(loggedError)
-          }
-          if (this.onRetryCompleteCallback) {
-            this.onRetryCompleteCallback(false)
-          }
-          throw error
-        }
-
-        // If this was the last attempt, fail
-        if (attempt >= maxAttempts) {
-          const loggedError = this.logError(error, track, attempt)
-          if (this.onErrorCallback) {
-            this.onErrorCallback(loggedError)
-          }
-          if (this.onRetryCompleteCallback) {
-            this.onRetryCompleteCallback(false)
-          }
-          throw error
-        }
-
-        // Calculate delay for next retry
-        // Handle empty delays array first
-        if (this.retryConfig.delays.length === 0) {
-          console.warn('Retry delays array is empty, using default 1000ms delay')
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-          continue
-        }
-        
-        // Use safe index to prevent out-of-bounds access
-        const delayIndex = Math.max(0, Math.min(attempt + 1, this.retryConfig.delays.length - 1))
-        const delay = this.retryConfig.delays[delayIndex]
-        
-        // Wait before retrying
-        await new Promise((resolve) => setTimeout(resolve, delay))
       }
-    }
 
-    // This should never be reached, but TypeScript needs it
-    throw lastError
-  }
+      // This should never be reached, but TypeScript needs it
+      throw lastError
+    },
 
-  /**
-   * Handle audio element error
-   */
-  handleAudioError(
-    error: Event,
-    audioElement: HTMLAudioElement,
-    track?: Track
-  ): ErrorInfo {
-    const mediaError = (error.target as HTMLAudioElement)?.error
-    let errorDetails: any = {}
+    /**
+     * Handle audio element error
+     */
+    handleAudioError(
+      error: Event,
+      audioElement: HTMLAudioElement,
+      track?: Track
+    ): ErrorInfo {
+      const mediaError = (error.target as HTMLAudioElement)?.error
+      let errorDetails: any = {}
 
-    if (mediaError) {
-      errorDetails = {
-        code: mediaError.code,
-        message: mediaError.message || `Media error code: ${mediaError.code}`,
+      if (mediaError) {
+        errorDetails = {
+          code: mediaError.code,
+          message: mediaError.message || `Media error code: ${mediaError.code}`,
+        }
+      } else {
+        errorDetails = {
+          message: 'Unknown audio error',
+        }
       }
-    } else {
-      errorDetails = {
-        message: 'Unknown audio error',
+
+      const errorInfo = logError(errorDetails, track, 0, onErrorCallback)
+      
+      if (onErrorCallback) {
+        onErrorCallback(errorInfo)
       }
-    }
 
-    const errorInfo = this.logError(errorDetails, track, 0)
-    
-    if (this.onErrorCallback) {
-      this.onErrorCallback(errorInfo)
-    }
+      return errorInfo
+    },
 
-    return errorInfo
-  }
+    /**
+     * Get retry status message
+     */
+    getRetryStatusMessage(attempt: number, maxAttempts: number): string {
+      if (attempt === 0) return ''
+      return `Retrying... ${attempt}/${maxAttempts}`
+    },
 
-  /**
-   * Get retry status message
-   */
-  getRetryStatusMessage(attempt: number, maxAttempts: number): string {
-    if (attempt === 0) return ''
-    return `Retrying... ${attempt}/${maxAttempts}`
-  }
+    /**
+     * Check if error is retryable
+     */
+    isRetryable(error: any): boolean {
+      const errorInfo = getErrorMessage(error, 0)
+      return errorInfo.type !== 'not_found' && errorInfo.type !== 'forbidden'
+    },
 
-  /**
-   * Check if error is retryable
-   */
-  isRetryable(error: any): boolean {
-    const errorInfo = getErrorMessage(error, 0)
-    return errorInfo.type !== 'not_found' && errorInfo.type !== 'forbidden'
-  }
-
-  /**
-   * Update retry configuration
-   */
-  updateConfig(config: Partial<RetryConfig>) {
-    this.retryConfig = { ...this.retryConfig, ...config }
+    /**
+     * Update retry configuration
+     */
+    updateConfig(config: Partial<RetryConfig>) {
+      Object.assign(retryConfig, config)
+    },
   }
 }
 
 /**
  * Default error handler instance
  */
-export const errorHandler = new ErrorHandler()
-
+export const errorHandler = createErrorHandler()

@@ -81,71 +81,22 @@ export function isMemoryCritical(): boolean {
 }
 
 /**
- * Memory monitor class
+ * Create memory monitor instance
  */
-export class MemoryMonitor {
-  private intervalId: NodeJS.Timeout | null = null
-  private onWarning?: (info: MemoryInfo) => void
-  private onCleanup?: (info: MemoryInfo) => void
-  private onCritical?: (info: MemoryInfo) => void
-  private lastWarningTime: number = 0
-  private lastCleanupTime: number = 0
-  private readonly WARNING_COOLDOWN = 60000 // 1 minute
-  private readonly CLEANUP_COOLDOWN = 30000 // 30 seconds
-
-  constructor() {
-    // Start monitoring if available
-    if (getMemoryInfo().available) {
-      this.start()
-    }
-  }
-
-  /**
-   * Start memory monitoring
-   */
-  start(interval: number = 10000): void {
-    if (this.intervalId) return
-
-    this.intervalId = setInterval(() => {
-      this.checkMemory()
-    }, interval)
-  }
-
-  /**
-   * Stop memory monitoring
-   */
-  stop(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId)
-      this.intervalId = null
-    }
-  }
-
-  /**
-   * Set warning callback
-   */
-  onWarningCallback(callback: (info: MemoryInfo) => void): void {
-    this.onWarning = callback
-  }
-
-  /**
-   * Set cleanup callback
-   */
-  onCleanupCallback(callback: (info: MemoryInfo) => void): void {
-    this.onCleanup = callback
-  }
-
-  /**
-   * Set critical callback
-   */
-  onCriticalCallback(callback: (info: MemoryInfo) => void): void {
-    this.onCritical = callback
-  }
+export function createMemoryMonitor() {
+  let intervalId: NodeJS.Timeout | null = null
+  let onWarning: ((info: MemoryInfo) => void) | undefined
+  let onCleanup: ((info: MemoryInfo) => void) | undefined
+  let onCritical: ((info: MemoryInfo) => void) | undefined
+  let lastWarningTime = 0
+  let lastCleanupTime = 0
+  const WARNING_COOLDOWN = 60000 // 1 minute
+  const CLEANUP_COOLDOWN = 30000 // 30 seconds
 
   /**
    * Check memory usage and trigger callbacks
    */
-  private checkMemory(): void {
+  function checkMemory(): void {
     const info = getMemoryInfo()
     if (!info.available) return
 
@@ -153,8 +104,8 @@ export class MemoryMonitor {
 
     // Check critical threshold
     if (info.usedJSHeapSize > MEMORY_CRITICAL_THRESHOLD) {
-      if (this.onCritical) {
-        this.onCritical(info)
+      if (onCritical) {
+        onCritical(info)
       }
       console.warn(`[Memory Monitor] Critical memory usage: ${formatBytes(info.usedJSHeapSize)}`)
       return
@@ -162,11 +113,11 @@ export class MemoryMonitor {
 
     // Check cleanup threshold
     if (info.usedJSHeapSize > MEMORY_CLEANUP_THRESHOLD) {
-      if (now - this.lastCleanupTime > this.CLEANUP_COOLDOWN) {
-        if (this.onCleanup) {
-          this.onCleanup(info)
+      if (now - lastCleanupTime > CLEANUP_COOLDOWN) {
+        if (onCleanup) {
+          onCleanup(info)
         }
-        this.lastCleanupTime = now
+        lastCleanupTime = now
         console.warn(`[Memory Monitor] High memory usage, cleanup triggered: ${formatBytes(info.usedJSHeapSize)}`)
       }
       return
@@ -174,41 +125,83 @@ export class MemoryMonitor {
 
     // Check warning threshold
     if (info.usedJSHeapSize > MEMORY_WARNING_THRESHOLD) {
-      if (now - this.lastWarningTime > this.WARNING_COOLDOWN) {
-        if (this.onWarning) {
-          this.onWarning(info)
+      if (now - lastWarningTime > WARNING_COOLDOWN) {
+        if (onWarning) {
+          onWarning(info)
         }
-        this.lastWarningTime = now
+        lastWarningTime = now
         console.warn(`[Memory Monitor] Memory usage warning: ${formatBytes(info.usedJSHeapSize)}`)
       }
     }
   }
 
-  /**
-   * Get current memory info
-   */
-  getInfo(): MemoryInfo {
-    return getMemoryInfo()
-  }
+  return {
+    /**
+     * Start memory monitoring
+     */
+    start(interval: number = 10000): void {
+      if (intervalId) return
 
-  /**
-   * Force garbage collection (if available)
-   */
-  forceGC(): void {
-    if (typeof window !== 'undefined' && (window as any).gc) {
-      try {
-        (window as any).gc()
-        console.log('[Memory Monitor] Garbage collection triggered')
-      } catch (error) {
-        console.warn('[Memory Monitor] Failed to trigger GC:', error)
+      intervalId = setInterval(() => {
+        checkMemory()
+      }, interval)
+    },
+
+    /**
+     * Stop memory monitoring
+     */
+    stop(): void {
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
       }
-    }
+    },
+
+    /**
+     * Set warning callback
+     */
+    onWarningCallback(callback: (info: MemoryInfo) => void): void {
+      onWarning = callback
+    },
+
+    /**
+     * Set cleanup callback
+     */
+    onCleanupCallback(callback: (info: MemoryInfo) => void): void {
+      onCleanup = callback
+    },
+
+    /**
+     * Set critical callback
+     */
+    onCriticalCallback(callback: (info: MemoryInfo) => void): void {
+      onCritical = callback
+    },
+
+    /**
+     * Get current memory info
+     */
+    getInfo(): MemoryInfo {
+      return getMemoryInfo()
+    },
+
+    /**
+     * Force garbage collection (if available)
+     */
+    forceGC(): void {
+      if (typeof window !== 'undefined' && (window as any).gc) {
+        try {
+          ;(window as any).gc()
+          console.log('[Memory Monitor] Garbage collection triggered')
+        } catch (error) {
+          console.warn('[Memory Monitor] Failed to trigger GC:', error)
+        }
+      }
+    },
   }
 }
 
 /**
  * Global memory monitor instance
  */
-export const memoryMonitor = new MemoryMonitor()
-
-
+export const memoryMonitor = createMemoryMonitor()

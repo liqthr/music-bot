@@ -36,239 +36,32 @@ export interface CacheConfig {
 }
 
 /**
- * LRU Cache Manager with TTL support
+ * Create LRU Cache Manager with TTL support
  */
-export class CacheManager<T> {
-  private cache: Map<string, CacheEntry<T>>
-  private accessOrder: string[] // Track access order for LRU
-  private config: Required<CacheConfig>
-  private stats: CacheStats
-  private currentSize: number = 0
-
-  constructor(config: CacheConfig) {
-    this.config = {
-      maxEntries: config.maxEntries,
-      ttl: config.ttl || Infinity,
-      maxSize: config.maxSize || Infinity,
-      persistent: config.persistent || false,
-      storageKey: config.storageKey || 'cache',
-    }
-    this.cache = new Map()
-    this.accessOrder = []
-    this.stats = {
-      hits: 0,
-      misses: 0,
-      evictions: 0,
-      size: 0,
-      maxSize: config.maxEntries,
-    }
-
-    // Load from localStorage if persistent
-    if (this.config.persistent) {
-      this.loadFromStorage()
-    }
+export function createCacheManager<T>(config: CacheConfig) {
+  const finalConfig: Required<CacheConfig> = {
+    maxEntries: config.maxEntries,
+    ttl: config.ttl || Infinity,
+    maxSize: config.maxSize || Infinity,
+    persistent: config.persistent || false,
+    storageKey: config.storageKey || 'cache',
   }
 
-  /**
-   * Get value from cache
-   */
-  get(key: string): T | null {
-    const entry = this.cache.get(key)
-
-    if (!entry) {
-      this.stats.misses++
-      return null
-    }
-
-    // Check if expired
-    const now = Date.now()
-    if (this.config.ttl !== Infinity && now - entry.timestamp > this.config.ttl) {
-      this.delete(key)
-      this.stats.misses++
-      return null
-    }
-
-    // Update access time and move to end of access order
-    entry.accessTime = now
-    this.updateAccessOrder(key)
-    this.stats.hits++
-
-    return entry.value
-  }
-
-  /**
-   * Set value in cache
-   */
-  set(key: string, value: T, size?: number): void {
-    const now = Date.now()
-    const entrySize = size || this.estimateSize(value)
-
-    // Prevent infinite loop: reject entries larger than maxSize
-    if (entrySize > this.config.maxSize) {
-      console.warn(`Entry size (${entrySize}) exceeds maxSize (${this.config.maxSize}), rejecting`)
-      return
-    }
-
-    // Check if we need to evict entries
-    let attempts = 0
-    const maxAttempts = this.cache.size + 1 // Prevent infinite loop
-    while (
-      (this.cache.size >= this.config.maxEntries || this.currentSize + entrySize > this.config.maxSize) &&
-      this.cache.size > 0 &&
-      attempts < maxAttempts
-    ) {
-      const sizeBeforeEviction = this.currentSize
-      this.evictLRU()
-      const sizeAfterEviction = this.currentSize
-      
-      // Break if no progress was made (defensive check)
-      if (sizeBeforeEviction === sizeAfterEviction && this.cache.size > 0) {
-        console.warn('Eviction loop detected: no progress made, breaking')
-        break
-      }
-      
-      attempts++
-    }
-
-    // Remove existing entry if present
-    if (this.cache.has(key)) {
-      const oldEntry = this.cache.get(key)!
-      this.currentSize -= oldEntry.size || 0
-      this.removeFromAccessOrder(key)
-    }
-
-    // Add new entry
-    const entry: CacheEntry<T> = {
-      value,
-      timestamp: now,
-      accessTime: now,
-      size: entrySize,
-    }
-
-    this.cache.set(key, entry)
-    this.accessOrder.push(key)
-    this.currentSize += entrySize
-    this.stats.size = this.cache.size
-
-    // Save to localStorage if persistent
-    if (this.config.persistent) {
-      this.saveToStorage()
-    }
-  }
-
-  /**
-   * Delete entry from cache
-   */
-  delete(key: string): boolean {
-    const entry = this.cache.get(key)
-    if (!entry) return false
-
-    this.currentSize -= entry.size || 0
-    this.cache.delete(key)
-    this.removeFromAccessOrder(key)
-    this.stats.size = this.cache.size
-
-    // Save to localStorage if persistent
-    if (this.config.persistent) {
-      this.saveToStorage()
-    }
-
-    return true
-  }
-
-  /**
-   * Clear all cache entries
-   */
-  clear(): void {
-    this.cache.clear()
-    this.accessOrder = []
-    this.currentSize = 0
-    this.stats.size = 0
-
-    // Clear localStorage if persistent
-    if (this.config.persistent && typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem(this.config.storageKey)
-      } catch (error) {
-        console.warn('Failed to clear cache from localStorage:', error)
-      }
-    }
-  }
-
-  /**
-   * Get cache statistics
-   */
-  getStats(): CacheStats {
-    return { ...this.stats }
-  }
-
-  /**
-   * Get cache size in bytes
-   */
-  getSize(): number {
-    return this.currentSize
-  }
-
-  /**
-   * Clean expired entries
-   */
-  cleanExpired(): number {
-    if (this.config.ttl === Infinity) return 0
-
-    const now = Date.now()
-    let cleaned = 0
-    const keysToDelete: string[] = []
-
-    for (const [key, entry] of this.cache.entries()) {
-      if (now - entry.timestamp > this.config.ttl) {
-        keysToDelete.push(key)
-      }
-    }
-
-    for (const key of keysToDelete) {
-      this.delete(key)
-      cleaned++
-    }
-
-    return cleaned
-  }
-
-  /**
-   * Evict least recently used entry
-   */
-  private evictLRU(): void {
-    if (this.accessOrder.length === 0) return
-
-    const lruKey = this.accessOrder[0]
-    this.delete(lruKey)
-    this.stats.evictions++
-  }
-
-  /**
-   * Update access order (move key to end)
-   */
-  private updateAccessOrder(key: string): void {
-    const index = this.accessOrder.indexOf(key)
-    if (index > -1) {
-      this.accessOrder.splice(index, 1)
-      this.accessOrder.push(key)
-    }
-  }
-
-  /**
-   * Remove key from access order
-   */
-  private removeFromAccessOrder(key: string): void {
-    const index = this.accessOrder.indexOf(key)
-    if (index > -1) {
-      this.accessOrder.splice(index, 1)
-    }
+  const cache = new Map<string, CacheEntry<T>>()
+  const accessOrder: string[] = []
+  let currentSize = 0
+  const stats: CacheStats = {
+    hits: 0,
+    misses: 0,
+    evictions: 0,
+    size: 0,
+    maxSize: config.maxEntries,
   }
 
   /**
    * Estimate size of value in bytes
    */
-  private estimateSize(value: T): number {
+  function estimateSize(value: T): number {
     if (typeof value === 'string') {
       return new Blob([value]).size
     }
@@ -283,23 +76,75 @@ export class CacheManager<T> {
   }
 
   /**
+   * Update access order (move key to end)
+   */
+  function updateAccessOrder(key: string): void {
+    const index = accessOrder.indexOf(key)
+    if (index > -1) {
+      accessOrder.splice(index, 1)
+      accessOrder.push(key)
+    }
+  }
+
+  /**
+   * Remove key from access order
+   */
+  function removeFromAccessOrder(key: string): void {
+    const index = accessOrder.indexOf(key)
+    if (index > -1) {
+      accessOrder.splice(index, 1)
+    }
+  }
+
+  /**
+   * Evict least recently used entry
+   */
+  function evictLRU(): void {
+    if (accessOrder.length === 0) return
+
+    const lruKey = accessOrder[0]
+    deleteEntry(lruKey)
+    stats.evictions++
+  }
+
+  /**
+   * Delete entry from cache (internal)
+   */
+  function deleteEntry(key: string): boolean {
+    const entry = cache.get(key)
+    if (!entry) return false
+
+    currentSize -= entry.size || 0
+    cache.delete(key)
+    removeFromAccessOrder(key)
+    stats.size = cache.size
+
+    // Save to localStorage if persistent
+    if (finalConfig.persistent) {
+      saveToStorage()
+    }
+
+    return true
+  }
+
+  /**
    * Save cache to localStorage
    */
-  private saveToStorage(): void {
+  function saveToStorage(): void {
     if (typeof window === 'undefined') return
 
     try {
       const data: Array<[string, CacheEntry<T>]> = []
-      for (const [key, entry] of this.cache.entries()) {
+      for (const [key, entry] of cache.entries()) {
         // Only save non-expired entries
         const now = Date.now()
-        if (this.config.ttl === Infinity || now - entry.timestamp <= this.config.ttl) {
+        if (finalConfig.ttl === Infinity || now - entry.timestamp <= finalConfig.ttl) {
           data.push([key, entry])
         }
       }
 
       // Limit size to avoid localStorage quota issues
-      const serialized = JSON.stringify(data.slice(0, this.config.maxEntries))
+      const serialized = JSON.stringify(data.slice(0, finalConfig.maxEntries))
       // Measure actual byte length, not UTF-16 code units
       let byteLength: number
       if (typeof TextEncoder !== 'undefined') {
@@ -316,7 +161,7 @@ export class CacheManager<T> {
         return
       }
 
-      localStorage.setItem(this.config.storageKey, serialized)
+      localStorage.setItem(finalConfig.storageKey, serialized)
     } catch (error) {
       console.warn('Failed to save cache to localStorage:', error)
     }
@@ -325,11 +170,11 @@ export class CacheManager<T> {
   /**
    * Load cache from localStorage
    */
-  private loadFromStorage(): void {
+  function loadFromStorage(): void {
     if (typeof window === 'undefined') return
 
     try {
-      const stored = localStorage.getItem(this.config.storageKey)
+      const stored = localStorage.getItem(finalConfig.storageKey)
       if (!stored) return
 
       const parsed: unknown = JSON.parse(stored)
@@ -341,7 +186,6 @@ export class CacheManager<T> {
       }
 
       const now = Date.now()
-      let validEntries = 0
       let totalSize = 0
 
       for (const item of parsed) {
@@ -370,44 +214,199 @@ export class CacheManager<T> {
         const cacheEntry = entry as CacheEntry<T>
 
         // Only load non-expired entries
-        if (this.config.ttl === Infinity || now - cacheEntry.timestamp <= this.config.ttl) {
-          this.cache.set(key, cacheEntry)
-          this.accessOrder.push(key)
+        if (finalConfig.ttl === Infinity || now - cacheEntry.timestamp <= finalConfig.ttl) {
+          cache.set(key, cacheEntry)
+          accessOrder.push(key)
           totalSize += cacheEntry.size || 0
-          validEntries++
         }
       }
 
-      this.currentSize = totalSize
-      this.stats.size = this.cache.size
+      currentSize = totalSize
+      stats.size = cache.size
     } catch (error) {
       console.warn('Failed to load cache from localStorage:', error)
     }
+  }
+
+  // Load from localStorage if persistent
+  if (finalConfig.persistent) {
+    loadFromStorage()
+  }
+
+  return {
+    /**
+     * Get value from cache
+     */
+    get(key: string): T | null {
+      const entry = cache.get(key)
+
+      if (!entry) {
+        stats.misses++
+        return null
+      }
+
+      // Check if expired
+      const now = Date.now()
+      if (finalConfig.ttl !== Infinity && now - entry.timestamp > finalConfig.ttl) {
+        this.delete(key)
+        stats.misses++
+        return null
+      }
+
+      // Update access time and move to end of access order
+      entry.accessTime = now
+      updateAccessOrder(key)
+      stats.hits++
+
+      return entry.value
+    },
+
+    /**
+     * Set value in cache
+     */
+    set(key: string, value: T, size?: number): void {
+      const now = Date.now()
+      const entrySize = size || estimateSize(value)
+
+      // Prevent infinite loop: reject entries larger than maxSize
+      if (entrySize > finalConfig.maxSize) {
+        console.warn(`Entry size (${entrySize}) exceeds maxSize (${finalConfig.maxSize}), rejecting`)
+        return
+      }
+
+      // Check if we need to evict entries
+      let attempts = 0
+      const maxAttempts = cache.size + 1 // Prevent infinite loop
+      while (
+        (cache.size >= finalConfig.maxEntries || currentSize + entrySize > finalConfig.maxSize) &&
+        cache.size > 0 &&
+        attempts < maxAttempts
+      ) {
+        const sizeBeforeEviction = currentSize
+        evictLRU()
+        const sizeAfterEviction = currentSize
+        
+        // Break if no progress was made (defensive check)
+        if (sizeBeforeEviction === sizeAfterEviction && cache.size > 0) {
+          console.warn('Eviction loop detected: no progress made, breaking')
+          break
+        }
+        
+        attempts++
+      }
+
+      // Remove existing entry if present
+      if (cache.has(key)) {
+        const oldEntry = cache.get(key)!
+        currentSize -= oldEntry.size || 0
+        removeFromAccessOrder(key)
+      }
+
+      // Add new entry
+      const entry: CacheEntry<T> = {
+        value,
+        timestamp: now,
+        accessTime: now,
+        size: entrySize,
+      }
+
+      cache.set(key, entry)
+      accessOrder.push(key)
+      currentSize += entrySize
+      stats.size = cache.size
+
+      // Save to localStorage if persistent
+      if (finalConfig.persistent) {
+        saveToStorage()
+      }
+    },
+
+    /**
+     * Delete entry from cache
+     */
+    delete(key: string): boolean {
+      return deleteEntry(key)
+    },
+
+    /**
+     * Clear all cache entries
+     */
+    clear(): void {
+      cache.clear()
+      accessOrder.length = 0
+      currentSize = 0
+      stats.size = 0
+
+      // Clear localStorage if persistent
+      if (finalConfig.persistent && typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(finalConfig.storageKey)
+        } catch (error) {
+          console.warn('Failed to clear cache from localStorage:', error)
+        }
+      }
+    },
+
+    /**
+     * Get cache statistics
+     */
+    getStats(): CacheStats {
+      return { ...stats }
+    },
+
+    /**
+     * Get cache size in bytes
+     */
+    getSize(): number {
+      return currentSize
+    },
+
+    /**
+     * Clean expired entries
+     */
+    cleanExpired(): number {
+      if (finalConfig.ttl === Infinity) return 0
+
+      const now = Date.now()
+      let cleaned = 0
+      const keysToDelete: string[] = []
+
+      for (const [key, entry] of cache.entries()) {
+        if (now - entry.timestamp > finalConfig.ttl) {
+          keysToDelete.push(key)
+        }
+      }
+
+      for (const key of keysToDelete) {
+        deleteEntry(key)
+        cleaned++
+      }
+
+      return cleaned
+    },
   }
 }
 
 /**
  * Global cache instances
  */
-export const searchResultCache = new CacheManager<any[]>({
+export const searchResultCache = createCacheManager<any[]>({
   maxEntries: 50,
   ttl: 15 * 60 * 1000, // 15 minutes
   persistent: true,
   storageKey: 'music_bot_search_cache',
 })
 
-export const trackMetadataCache = new CacheManager<any>({
+export const trackMetadataCache = createCacheManager<any>({
   maxEntries: 200,
   ttl: 60 * 60 * 1000, // 1 hour
   persistent: true,
   storageKey: 'music_bot_track_cache',
 })
 
-export const albumArtCache = new CacheManager<string>({
+export const albumArtCache = createCacheManager<string>({
   maxEntries: 100,
   maxSize: 50 * 1024 * 1024, // 50MB
   persistent: false, // Don't persist images to localStorage
   storageKey: 'music_bot_art_cache',
 })
-
-
