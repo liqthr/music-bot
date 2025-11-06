@@ -18,6 +18,9 @@ const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/
 const CACHE_CLEANUP_LOCK_FILE = path.join(tmpdir(), 'music-bot-cache-cleanup.lock')
 const CACHE_CLEANUP_LOCK_TTL_MS = 300000 // 5 minutes - lock expires after this time
 
+// Per-video download locks to prevent concurrent downloads of the same videoId
+const downloadLocks = new Map<string, Promise<void>>()
+
 /**
  * Download audio from YouTube video and convert to FLAC or MP3
  * Uses yt-dlp to extract audio and ffmpeg to convert formats
@@ -68,6 +71,7 @@ export async function GET(request: NextRequest) {
     })
     
     const outputFile = path.join(tempDir, `${videoId}.${format}`)
+    const lockKey = `${videoId}.${format}` // Include format in lock key
 
     // Check if file already exists (cache) - async
     try {
@@ -90,17 +94,116 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Download audio using yt-dlp
-    await downloadAudioFromYouTube(youtubeUrl, outputFile, format, DOWNLOAD_TIMEOUT_MS)
+    // Acquire lock for this videoId+format combination
+    let downloadPromise = downloadLocks.get(lockKey)
+    
+    if (downloadPromise) {
+      // Another request is already downloading, wait for it
+      try {
+        await downloadPromise
+        // After download completes, read the cached file
+        const fileBuffer = await fs.readFile(outputFile)
+        const headers = new Headers()
+        headers.set('Content-Type', format === 'flac' ? 'audio/flac' : 'audio/mpeg')
+        headers.set('Content-Disposition', `inline; filename="${videoId}.${format}"`)
+        headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+        return new NextResponse(fileBuffer, { headers })
+      } catch (error: any) {
+        // If the download failed, try downloading ourselves
+        // (the lock will be removed, so we'll create a new one)
+        console.warn('Previous download failed, retrying:', error.message)
+      }
+    }
 
-    // Read and return the file (async)
-    const fileBuffer = await fs.readFile(outputFile)
-    const headers = new Headers()
-    headers.set('Content-Type', format === 'flac' ? 'audio/flac' : 'audio/mpeg')
-    headers.set('Content-Disposition', `inline; filename="${videoId}.${format}"`)
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+    // Create new download promise and acquire lock
+    downloadPromise = (async () => {
+      try {
+        // Re-check cache inside critical section (another process might have created it)
+        try {
+          const stats = await fs.stat(outputFile)
+          // File exists, update access time and return
+          await fs.utimes(outputFile, stats.atime, new Date())
+          return
+        } catch (error: any) {
+          // File doesn't exist, continue to download
+          if (error.code !== 'ENOENT') {
+            throw error
+          }
+        }
 
-    return new NextResponse(fileBuffer, { headers })
+        // Download to temporary file first (use .tmp extension before format extension)
+        // This ensures downloadAudioFromYouTube creates videoId.tmp.flac which we can rename atomically
+        const tempFile = outputFile.replace(`.${format}`, `.tmp.${format}`)
+        
+        // Download audio using yt-dlp to temp file
+        await downloadAudioFromYouTube(youtubeUrl, tempFile, format, DOWNLOAD_TIMEOUT_MS)
+
+        // Verify temp file exists (downloadAudioFromYouTube should have created it)
+        // It may have been renamed by downloadAudioFromYouTube's internal logic, so check both
+        let actualTempFile = tempFile
+        try {
+          await fs.stat(tempFile)
+        } catch {
+          // downloadAudioFromYouTube may have renamed it, check for the pattern
+          const dir = path.dirname(tempFile)
+          const baseName = path.basename(tempFile, `.${format}`)
+          const files = await fs.readdir(dir)
+          const matchingFile = files.find(f => 
+            f.startsWith(baseName) && 
+            (f.endsWith(`.${format}`) || f === baseName)
+          )
+          if (matchingFile) {
+            actualTempFile = path.join(dir, matchingFile)
+          } else {
+            throw new Error('Downloaded temp file not found after download completion')
+          }
+        }
+
+        // Atomically rename temp file to final output file
+        await fs.rename(actualTempFile, outputFile)
+      } catch (error: any) {
+        // Clean up temp file on error
+        try {
+          const tempFile = outputFile.replace(`.${format}`, `.tmp.${format}`)
+          await fs.unlink(tempFile).catch(() => {})
+          // Also clean up any files that might have been created by downloadAudioFromYouTube
+          const dir = path.dirname(outputFile)
+          const baseName = path.basename(outputFile, `.${format}`)
+          const files = await fs.readdir(dir).catch(() => [])
+          for (const file of files) {
+            if (file.startsWith(`${baseName}.tmp`) && file.endsWith(`.${format}`)) {
+              await fs.unlink(path.join(dir, file)).catch(() => {})
+            }
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+        throw error
+      }
+    })()
+
+    // Store the promise in the lock map
+    downloadLocks.set(lockKey, downloadPromise)
+
+    try {
+      // Wait for download to complete
+      await downloadPromise
+
+      // Read and return the file
+      const fileBuffer = await fs.readFile(outputFile)
+      const headers = new Headers()
+      headers.set('Content-Type', format === 'flac' ? 'audio/flac' : 'audio/mpeg')
+      headers.set('Content-Disposition', `inline; filename="${videoId}.${format}"`)
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+
+      return new NextResponse(fileBuffer, { headers })
+    } catch (error: any) {
+      // Propagate error with useful message
+      throw error
+    } finally {
+      // Always remove lock so waiters can proceed or retry
+      downloadLocks.delete(lockKey)
+    }
   } catch (error: any) {
     console.error('Audio download error:', error)
     return NextResponse.json(

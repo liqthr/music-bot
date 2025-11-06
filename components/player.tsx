@@ -39,14 +39,26 @@ export function Player({
     if (!track || !audioRef.current) return
 
     const audio = audioRef.current
+    let isUsingFlac = false
+    let hasFallenBackToMp3 = false
 
     // Determine audio source
     let audioUrl = track.stream_url || track.preview_url
 
     // Handle YouTube tracks - use our download endpoint
     if (track.platform === 'youtube' && track.videoId) {
-      // Use FLAC for best quality, fallback to MP3 if FLAC not available
-      audioUrl = `/api/audio/download?videoId=${track.videoId}&format=flac`
+      // Check runtime FLAC support
+      const testAudio = new Audio()
+      const flacSupported = testAudio.canPlayType('audio/flac')
+      
+      if (flacSupported) {
+        // Browser claims FLAC support, try FLAC first
+        audioUrl = `/api/audio/download?videoId=${track.videoId}&format=flac`
+        isUsingFlac = true
+      } else {
+        // No FLAC support, use MP3 directly
+        audioUrl = `/api/audio/download?videoId=${track.videoId}&format=mp3`
+      }
     }
 
     if (!audioUrl) {
@@ -77,9 +89,24 @@ export function Player({
     }
 
     const handleError = (e: Event) => {
-      console.error('Audio playback error:', e)
-      // Modern browsers support FLAC natively, so this should work
-      // If it fails, the error will be logged for debugging
+      // If using FLAC and haven't fallen back yet, try MP3
+      if (isUsingFlac && !hasFallenBackToMp3 && track?.platform === 'youtube' && track?.videoId) {
+        hasFallenBackToMp3 = true
+        console.warn('FLAC playback failed, falling back to MP3')
+        
+        // Remove error listener temporarily to avoid recursion
+        audio.removeEventListener('error', handleError)
+        
+        // Try MP3 format
+        const mp3Url = `/api/audio/download?videoId=${track.videoId}&format=mp3`
+        audio.src = mp3Url
+        audio.load()
+        
+        // Re-add error listener
+        audio.addEventListener('error', handleError)
+      } else {
+        console.error('Audio playback error:', e)
+      }
     }
 
     const handleCanPlay = () => {
