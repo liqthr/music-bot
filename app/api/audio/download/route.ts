@@ -77,7 +77,8 @@ export async function GET(request: NextRequest) {
     try {
       const stats = await fs.stat(outputFile)
       // Update access time to track usage
-      await fs.utimes(outputFile, stats.atime, new Date())
+      const now = new Date()
+      await fs.utimes(outputFile, now, stats.mtime)
       
       // Read file asynchronously
       const fileBuffer = await fs.readFile(outputFile)
@@ -420,7 +421,11 @@ function downloadAudioFromYouTube(
           // Rename file if needed (yt-dlp might add extension) - async
           fs.readdir(path.dirname(outputPath))
             .then(files => {
-              const matchingFile = files.find(f => f.startsWith(path.basename(outputPath, `.${format}`)))
+              const baseName = path.basename(outputPath, `.${format}`)
+              const expectedName = `${baseName}.${format}`
+              const matchingFile = files.find(
+                f => f === expectedName || (f.startsWith(baseName) && f.endsWith(`.${format}`))
+              )
               if (matchingFile && matchingFile !== path.basename(outputPath)) {
                 return fs.rename(
                   path.join(path.dirname(outputPath), matchingFile),
