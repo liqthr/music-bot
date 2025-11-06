@@ -334,7 +334,7 @@ export default function MusicPlayerPage() {
           
           // Add success notification
           const fallbackError: ErrorInfo = {
-            type: 'info',
+            type: 'unknown',
             message: `Switched to ${alternativeTrack.platform === 'soundcloud' ? 'SoundCloud' : alternativeTrack.platform === 'youtube' ? 'YouTube' : 'Spotify'} version`,
             severity: 'info',
             timestamp: Date.now(),
@@ -344,7 +344,7 @@ export default function MusicPlayerPage() {
         } else if (autoSkipOnError) {
           // No alternative found - skip if auto-skip is enabled
           const skipError: ErrorInfo = {
-            type: 'error',
+            type: 'unknown',
             message: 'Skipped unplayable track',
             severity: 'info',
             timestamp: Date.now(),
