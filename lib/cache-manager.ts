@@ -40,22 +40,22 @@ export interface CacheConfig {
  */
 export function createCacheManager<T>(config: CacheConfig) {
   const finalConfig: Required<CacheConfig> = {
-    maxEntries: config.maxEntries,
-    ttl: config.ttl || Infinity,
-    maxSize: config.maxSize || Infinity,
-    persistent: config.persistent || false,
-    storageKey: config.storageKey || 'cache',
-  }
+      maxEntries: config.maxEntries,
+      ttl: config.ttl || Infinity,
+      maxSize: config.maxSize || Infinity,
+      persistent: config.persistent || false,
+      storageKey: config.storageKey || 'cache',
+    }
 
   const cache = new Map<string, CacheEntry<T>>()
   const accessOrder: string[] = []
   let currentSize = 0
   const stats: CacheStats = {
-    hits: 0,
-    misses: 0,
-    evictions: 0,
-    size: 0,
-    maxSize: config.maxEntries,
+      hits: 0,
+      misses: 0,
+      evictions: 0,
+      size: 0,
+      maxSize: config.maxEntries,
   }
 
   /**

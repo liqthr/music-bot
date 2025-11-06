@@ -375,7 +375,7 @@ export default function MusicPlayerPage() {
           setIsPlaying(true)
           
           const fallbackError: ErrorInfo = {
-            type: 'info',
+            type: 'unknown',
             message: `Switched to ${alternativeTrack.platform === 'soundcloud' ? 'SoundCloud' : alternativeTrack.platform === 'youtube' ? 'YouTube' : 'Spotify'} version`,
             severity: 'info',
             timestamp: Date.now(),

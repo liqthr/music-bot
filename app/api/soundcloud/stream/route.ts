@@ -115,14 +115,14 @@ export async function GET(request: NextRequest) {
       bitrate = streamInfo.bitrate
     } else {
       // Approximate defaults (estimates only)
-      if (streamInfo.quality === 'hq') {
-        quality = 'hq'
+    if (streamInfo.quality === 'hq') {
+      quality = 'hq'
         bitrate = 256 // Estimated: HQ typically ~256 kbps (may be AAC or MP3)
-      } else if (streamInfo.quality === 'sq') {
-        quality = 'standard'
+    } else if (streamInfo.quality === 'sq') {
+      quality = 'standard'
         bitrate = 128 // Estimated: Standard typically ~128 kbps
-      } else if (streamInfo.quality) {
-        quality = streamInfo.quality as 'preview' | 'low'
+    } else if (streamInfo.quality) {
+      quality = streamInfo.quality as 'preview' | 'low'
       }
     }
 

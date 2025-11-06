@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "validate": "node scripts/validate-deployment.js",
+    "validate:strict": "node scripts/validate-deployment.js && npm run build",
+    "prebuild": "node scripts/validate-deployment.js"
   },
   "dependencies": {
     "@googleapis/youtube": "^29.0.0",

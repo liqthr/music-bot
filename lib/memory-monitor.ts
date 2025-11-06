@@ -178,25 +178,25 @@ export function createMemoryMonitor() {
       onCritical = callback
     },
 
-    /**
-     * Get current memory info
-     */
-    getInfo(): MemoryInfo {
-      return getMemoryInfo()
+  /**
+   * Get current memory info
+   */
+  getInfo(): MemoryInfo {
+    return getMemoryInfo()
     },
 
-    /**
-     * Force garbage collection (if available)
-     */
-    forceGC(): void {
-      if (typeof window !== 'undefined' && (window as any).gc) {
-        try {
+  /**
+   * Force garbage collection (if available)
+   */
+  forceGC(): void {
+    if (typeof window !== 'undefined' && (window as any).gc) {
+      try {
           ;(window as any).gc()
-          console.log('[Memory Monitor] Garbage collection triggered')
-        } catch (error) {
-          console.warn('[Memory Monitor] Failed to trigger GC:', error)
-        }
+        console.log('[Memory Monitor] Garbage collection triggered')
+      } catch (error) {
+        console.warn('[Memory Monitor] Failed to trigger GC:', error)
       }
+    }
     },
   }
 }

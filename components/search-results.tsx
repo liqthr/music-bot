@@ -43,16 +43,16 @@ export function SearchResults({ results, onPlay, onAddToQueue, isLoading }: Sear
         .then((enriched) => {
           // Only apply updates if this run hasn't been cancelled
           if (!isCancelled) {
-            setEnrichedTracks((prev) => {
-              const updated = [...prev]
-              enriched.forEach((enrichedTrack) => {
-                const index = updated.findIndex((t) => t.id === enrichedTrack.id)
-                if (index !== -1 && enrichedTrack.quality) {
-                  updated[index] = enrichedTrack
-                }
-              })
-              return updated
+          setEnrichedTracks((prev) => {
+            const updated = [...prev]
+            enriched.forEach((enrichedTrack) => {
+              const index = updated.findIndex((t) => t.id === enrichedTrack.id)
+              if (index !== -1 && enrichedTrack.quality) {
+                updated[index] = enrichedTrack
+              }
             })
+            return updated
+          })
           }
         })
         .catch(() => {

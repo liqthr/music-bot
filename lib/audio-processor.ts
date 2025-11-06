@@ -125,286 +125,286 @@ export function createAudioProcessor() {
   return {
     /**
      * Create audio source from HTMLAudioElement
-     */
+   */
     async createAudioSource(audioElementParam: HTMLAudioElement): Promise<void> {
-      // Initialize AudioContext if needed
+    // Initialize AudioContext if needed
       await initializeAudioContext()
 
       if (!audioContext) {
-        throw new Error('AudioContext initialization failed')
-      }
+      throw new Error('AudioContext initialization failed')
+    }
 
-      // Dispose existing source if any
+    // Dispose existing source if any
       if (sourceNode) {
         disposeSource()
-      }
+    }
 
-      // Store audio element reference
+    // Store audio element reference
       audioElement = audioElementParam
 
-      // Create audio graph if not already created
+    // Create audio graph if not already created
       if (!gainNode) {
         createAudioGraph()
-      }
+    }
 
-      // Create MediaElementSourceNode from audio element
-      // Note: Can only create one source per audio element
-      try {
+    // Create MediaElementSourceNode from audio element
+    // Note: Can only create one source per audio element
+    try {
         sourceNode = audioContext.createMediaElementSource(audioElement)
-        // Connect source to gain node
+      // Connect source to gain node
         sourceNode.connect(gainNode!)
-      } catch (error) {
-        console.error('Failed to create audio source:', error)
-        throw new Error('Failed to create audio source. Audio element may already be connected.')
-      }
+    } catch (error) {
+      console.error('Failed to create audio source:', error)
+      throw new Error('Failed to create audio source. Audio element may already be connected.')
+    }
     },
 
-    /**
-     * Set volume level (0.0 to 1.0)
-     */
-    setVolume(level: number): void {
+  /**
+   * Set volume level (0.0 to 1.0)
+   */
+  setVolume(level: number): void {
       if (!gainNode) {
-        console.warn('Gain node not initialized. Call createAudioSource first.')
-        return
-      }
+      console.warn('Gain node not initialized. Call createAudioSource first.')
+      return
+    }
 
-      // Clamp volume to valid range
-      const clampedLevel = Math.max(0, Math.min(1, level))
+    // Clamp volume to valid range
+    const clampedLevel = Math.max(0, Math.min(1, level))
       gainNode.gain.value = clampedLevel
     },
 
-    /**
-     * Get current volume level
-     */
-    getVolume(): number {
+  /**
+   * Get current volume level
+   */
+  getVolume(): number {
       if (!gainNode) {
-        return 1.0
-      }
+      return 1.0
+    }
       return gainNode.gain.value
     },
 
-    /**
-     * Set equalizer settings
-     */
-    setEqualizer(settings: EqualizerSettings): void {
+  /**
+   * Set equalizer settings
+   */
+  setEqualizer(settings: EqualizerSettings): void {
       if (!bassFilter || !midFilter || !trebleFilter) {
-        console.warn('Equalizer filters not initialized. Call createAudioSource first.')
-        return
-      }
+      console.warn('Equalizer filters not initialized. Call createAudioSource first.')
+      return
+    }
 
-      // Clamp gains to valid range (-12 to +12 dB)
-      const bassGain = Math.max(-12, Math.min(12, settings.bass))
-      const midGain = Math.max(-12, Math.min(12, settings.mid))
-      const trebleGain = Math.max(-12, Math.min(12, settings.treble))
+    // Clamp gains to valid range (-12 to +12 dB)
+    const bassGain = Math.max(-12, Math.min(12, settings.bass))
+    const midGain = Math.max(-12, Math.min(12, settings.mid))
+    const trebleGain = Math.max(-12, Math.min(12, settings.treble))
 
-      // Apply gains with smooth transitions
+    // Apply gains with smooth transitions
       if (audioContext) {
         const now = audioContext.currentTime
         bassFilter.gain.setTargetAtTime(bassGain, now, 0.01)
         midFilter.gain.setTargetAtTime(midGain, now, 0.01)
         trebleFilter.gain.setTargetAtTime(trebleGain, now, 0.01)
-      } else {
-        // Fallback if AudioContext not available
+    } else {
+      // Fallback if AudioContext not available
         bassFilter.gain.value = bassGain
         midFilter.gain.value = midGain
         trebleFilter.gain.value = trebleGain
-      }
+    }
     },
 
-    /**
-     * Get current equalizer settings
-     */
-    getEqualizer(): EqualizerSettings {
-      return {
+  /**
+   * Get current equalizer settings
+   */
+  getEqualizer(): EqualizerSettings {
+    return {
         bass: bassFilter?.gain.value || 0,
         mid: midFilter?.gain.value || 0,
         treble: trebleFilter?.gain.value || 0,
-      }
+    }
     },
 
-    /**
-     * Set playback rate (0.5 to 2.0)
-     * Note: HTMLAudioElement.playbackRate changes both speed and pitch
-     */
-    setPlaybackRate(rate: number): void {
+  /**
+   * Set playback rate (0.5 to 2.0)
+   * Note: HTMLAudioElement.playbackRate changes both speed and pitch
+   */
+  setPlaybackRate(rate: number): void {
       if (!audioElement) {
-        console.warn('Audio element not connected. Call createAudioSource first.')
-        return
-      }
+      console.warn('Audio element not connected. Call createAudioSource first.')
+      return
+    }
 
-      // Clamp rate to valid range
-      const clampedRate = Math.max(0.5, Math.min(2.0, rate))
+    // Clamp rate to valid range
+    const clampedRate = Math.max(0.5, Math.min(2.0, rate))
       audioElement.playbackRate = clampedRate
     },
 
-    /**
-     * Get current playback rate
-     */
-    getPlaybackRate(): number {
+  /**
+   * Get current playback rate
+   */
+  getPlaybackRate(): number {
       if (!audioElement) {
-        return 1.0
-      }
+      return 1.0
+    }
       return audioElement.playbackRate
     },
 
-    /**
-     * Set pitch adjustment in semitones (-12 to +12)
-     * Uses playbackRate adjustment: pitchRatio = 2^(semitones/12)
-     */
-    setPitch(semitones: number): void {
+  /**
+   * Set pitch adjustment in semitones (-12 to +12)
+   * Uses playbackRate adjustment: pitchRatio = 2^(semitones/12)
+   */
+  setPitch(semitones: number): void {
       if (!audioElement) {
-        console.warn('Audio element not connected. Call createAudioSource first.')
-        return
-      }
+      console.warn('Audio element not connected. Call createAudioSource first.')
+      return
+    }
 
-      // Clamp semitones to valid range
-      const clampedSemitones = Math.max(-12, Math.min(12, semitones))
-      
-      // Convert semitones to playback rate ratio
-      const pitchRatio = Math.pow(2, clampedSemitones / 12)
-      
-      // Apply pitch adjustment via playbackRate
+    // Clamp semitones to valid range
+    const clampedSemitones = Math.max(-12, Math.min(12, semitones))
+    
+    // Convert semitones to playback rate ratio
+    const pitchRatio = Math.pow(2, clampedSemitones / 12)
+    
+    // Apply pitch adjustment via playbackRate
       audioElement.playbackRate = pitchRatio
     },
 
-    /**
-     * Get current pitch adjustment in semitones
-     */
-    getPitch(): number {
+  /**
+   * Get current pitch adjustment in semitones
+   */
+  getPitch(): number {
       if (!audioElement) {
-        return 0
-      }
-      // Convert playbackRate back to semitones
+      return 0
+    }
+    // Convert playbackRate back to semitones
       const playbackRate = audioElement.playbackRate
-      return 12 * Math.log2(playbackRate)
+    return 12 * Math.log2(playbackRate)
     },
 
-    /**
-     * Get analyser data for volume normalization and waveform visualization
-     */
-    getAnalyserData(): AnalyserData | null {
+  /**
+   * Get analyser data for volume normalization and waveform visualization
+   */
+  getAnalyserData(): AnalyserData | null {
       if (!analyserNode) {
-        return null
-      }
+      return null
+    }
 
       const bufferLength = analyserNode.frequencyBinCount
-      const frequencyData = new Uint8Array(bufferLength)
-      const timeData = new Uint8Array(bufferLength)
+    const frequencyData = new Uint8Array(bufferLength)
+    const timeData = new Uint8Array(bufferLength)
 
       analyserNode.getByteFrequencyData(frequencyData)
       analyserNode.getByteTimeDomainData(timeData)
 
-      // Calculate average and peak volume
-      let sum = 0
-      let peak = 0
-      for (let i = 0; i < frequencyData.length; i++) {
-        sum += frequencyData[i]
-        peak = Math.max(peak, frequencyData[i])
-      }
-      const averageVolume = sum / frequencyData.length
-      const peakVolume = peak
+    // Calculate average and peak volume
+    let sum = 0
+    let peak = 0
+    for (let i = 0; i < frequencyData.length; i++) {
+      sum += frequencyData[i]
+      peak = Math.max(peak, frequencyData[i])
+    }
+    const averageVolume = sum / frequencyData.length
+    const peakVolume = peak
 
-      return {
-        frequencyData,
-        timeData,
-        averageVolume,
-        peakVolume,
-      }
+    return {
+      frequencyData,
+      timeData,
+      averageVolume,
+      peakVolume,
+    }
     },
 
-    /**
-     * Dispose all audio nodes and close AudioContext
-     */
-    async dispose(): Promise<void> {
-      // Dispose source
+  /**
+   * Dispose all audio nodes and close AudioContext
+   */
+  async dispose(): Promise<void> {
+    // Dispose source
       disposeSource()
 
-      // Disconnect all nodes
+    // Disconnect all nodes
       if (gainNode) {
-        try {
+      try {
           gainNode.disconnect()
-        } catch (error) {
-          // Ignore errors
-        }
-        gainNode = null
+      } catch (error) {
+        // Ignore errors
       }
+        gainNode = null
+    }
 
       if (bassFilter) {
-        try {
+      try {
           bassFilter.disconnect()
-        } catch (error) {
-          // Ignore errors
-        }
-        bassFilter = null
+      } catch (error) {
+        // Ignore errors
       }
+        bassFilter = null
+    }
 
       if (midFilter) {
-        try {
+      try {
           midFilter.disconnect()
-        } catch (error) {
-          // Ignore errors
-        }
-        midFilter = null
+      } catch (error) {
+        // Ignore errors
       }
+        midFilter = null
+    }
 
       if (trebleFilter) {
-        try {
+      try {
           trebleFilter.disconnect()
-        } catch (error) {
-          // Ignore errors
-        }
-        trebleFilter = null
+      } catch (error) {
+        // Ignore errors
       }
+        trebleFilter = null
+    }
 
       if (analyserNode) {
-        try {
+      try {
           analyserNode.disconnect()
-        } catch (error) {
-          // Ignore errors
-        }
+      } catch (error) {
+        // Ignore errors
+      }
         analyserNode = null
-      }
+    }
 
-      // Close AudioContext
+    // Close AudioContext
       if (audioContext && audioContext.state !== 'closed') {
-        try {
+      try {
           await audioContext.close()
-        } catch (error) {
-          console.error('Error closing AudioContext:', error)
-        }
-        audioContext = null
+      } catch (error) {
+        console.error('Error closing AudioContext:', error)
       }
+        audioContext = null
+    }
 
       isInitialized = false
     },
 
-    /**
-     * Resume AudioContext if suspended
-     */
-    async resume(): Promise<void> {
+  /**
+   * Resume AudioContext if suspended
+   */
+  async resume(): Promise<void> {
       if (audioContext && audioContext.state === 'suspended') {
-        try {
+      try {
           await audioContext.resume()
-        } catch (error) {
-          console.error('Failed to resume AudioContext:', error)
-        }
+      } catch (error) {
+        console.error('Failed to resume AudioContext:', error)
       }
+    }
     },
 
-    /**
-     * Get AudioContext state
-     */
-    getState(): AudioContextState | 'not-initialized' {
+  /**
+   * Get AudioContext state
+   */
+  getState(): AudioContextState | 'not-initialized' {
       if (!audioContext) {
-        return 'not-initialized'
-      }
+      return 'not-initialized'
+    }
       return audioContext.state
     },
 
-    /**
-     * Check if AudioProcessor is initialized
-     */
-    isReady(): boolean {
+  /**
+   * Check if AudioProcessor is initialized
+   */
+  isReady(): boolean {
       return isInitialized && audioContext !== null && sourceNode !== null
     },
   }
