@@ -56,7 +56,7 @@ import {
 import type { ThemeSettings } from '@/lib/types'
 import { applyFilters, getDefaultFilters } from '@/lib/search-filter-utils'
 import { addToHistory } from '@/lib/search-history'
-import { memoryMonitor, needsMemoryCleanup } from '@/lib/memory-monitor'
+import { memoryMonitor, needsMemoryCleanup, formatBytes } from '@/lib/memory-monitor'
 import { searchResultCache, trackMetadataCache, albumArtCache } from '@/lib/cache-manager'
 import { ErrorToast } from '@/components/error-toast'
 import type { ErrorInfo } from '@/lib/error-handler'
