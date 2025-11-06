@@ -32,7 +32,8 @@ const downloadLocks = new Map<string, Promise<void>>()
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const videoId = searchParams.get('videoId')
-  const format = searchParams.get('format') || 'flac' // 'flac' or 'mp3'
+  const formatParam = searchParams.get('format') || 'flac' // 'flac' or 'mp3'
+  const format: 'flac' | 'mp3' = formatParam === 'mp3' ? 'mp3' : 'flac'
 
   if (!videoId) {
     return NextResponse.json(
@@ -49,7 +50,8 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (!['flac', 'mp3'].includes(format)) {
+  // Validate format parameter (already normalized, but check for invalid values)
+  if (formatParam && !['flac', 'mp3'].includes(formatParam)) {
     return NextResponse.json(
       { error: 'format must be "flac" or "mp3"' },
       { status: 400 }
