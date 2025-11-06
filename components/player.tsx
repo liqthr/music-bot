@@ -17,8 +17,10 @@ interface PlayerProps {
 }
 
 /**
- * Audio player component using native HTML5 audio
- * Modern browsers support FLAC natively, so no external library is needed
+ * Renders a hidden HTML5 audio element that plays the provided track and forwards playback events (duration, time updates, and track end) via callbacks.
+ *
+ * @param props - Player component props
+ * @returns The hidden `<audio>` element used for native playback and control (play/pause, volume, seeking).
  */
 export function Player({
   track,
