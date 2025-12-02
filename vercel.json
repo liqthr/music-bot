@@ -3,67 +3,6 @@
   "devCommand": "next dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "version": 2,
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/callback",
-      "destination": "/callback.html"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/auth",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/search",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/youtube-search",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/youtube-video/:id",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/spotify-search",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/soundcloud-search",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/soundcloud-search-alt",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/soundcloud-stream",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/health",
-      "destination": "/server.js"
-    },
-    {
-      "source": "/health/details",
-      "destination": "/server.js"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)\\.(css|js|png|jpg|jpeg|svg|webp|gif|woff2|ico|flac)",
