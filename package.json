@@ -11,9 +11,15 @@
   "dependencies": {
     "@googleapis/youtube": "^29.0.0",
     "axios": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "winston": "^3.13.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
