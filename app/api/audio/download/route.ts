@@ -32,7 +32,8 @@ const downloadLocks = new Map<string, Promise<void>>()
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const videoId = searchParams.get('videoId')
-  const format = searchParams.get('format') || 'flac' // 'flac' or 'mp3'
+  // Narrow the type for TypeScript while still validating at runtime
+  const format = (searchParams.get('format') as 'flac' | 'mp3' | null) || 'flac' // 'flac' or 'mp3'
 
   if (!videoId) {
     return NextResponse.json(
