@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     try {
       const stats = await fs.stat(outputFile)
       // Update access time to track usage
-      await fs.utimes(outputFile, stats.atime, new Date())
+      await fs.utimes(outputFile, new Date(), stats.mtime)
       
       // Read file asynchronously
       const fileBuffer = await fs.readFile(outputFile)
