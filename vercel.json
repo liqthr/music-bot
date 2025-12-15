@@ -1,17 +1,9 @@
 {
+  "version": 2,
   "buildCommand": "next build",
   "devCommand": "next dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "headers": [
-    {
-      "source": "/(.*)\\.(css|js|png|jpg|jpeg|svg|webp|gif|woff2|ico|flac)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-  "version": 2,
   "builds": [
     {
       "src": "server.js",
@@ -74,9 +66,12 @@
   ],
   "headers": [
     {
-      "source": "/(.*)\\.(css|js|png|jpg|jpeg|svg|webp|gif|woff2|ico)",
+      "source": "/(.*)\\.(css|js|png|jpg|jpeg|svg|webp|gif|woff2|ico|flac)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     }
   ]
