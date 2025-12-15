@@ -14,13 +14,11 @@ interface PlayerProps {
   volume: number
   onVolumeChange: (volume: number) => void
   seekTo?: number
+  onError?: (err: Error | Event) => void
 }
 
 /**
- * Renders a hidden HTML5 audio element that plays the provided track and forwards playback events (duration, time updates, and track end) via callbacks.
- *
- * @param props - Player component props
- * @returns The hidden `<audio>` element used for native playback and control (play/pause, volume, seeking).
+ * Renders a hidden HTML5 audio element that plays the provided track and forwards playback events.
  */
 export function Player({
   track,
@@ -33,8 +31,20 @@ export function Player({
   volume,
   onVolumeChange,
   seekTo,
+  onError,
 }: PlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Keep latest callbacks without re-subscribing audio events.
+  const onDurationChangeRef = useRef(onDurationChange)
+  const onTimeUpdateRef = useRef(onTimeUpdate)
+  const onNextRef = useRef(onNext)
+
+  useEffect(() => {
+    onDurationChangeRef.current = onDurationChange
+    onTimeUpdateRef.current = onTimeUpdate
+    onNextRef.current = onNext
+  }, [onDurationChange, onTimeUpdate, onNext])
 
   // Load track when it changes
   useEffect(() => {
@@ -42,13 +52,14 @@ export function Player({
 
     const audio = audioRef.current
 
-    // Determine audio source
     let audioUrl = track.stream_url || track.preview_url
 
-    // Handle YouTube tracks - use our download endpoint
     if (track.platform === 'youtube' && track.videoId) {
-      // Use FLAC for best quality, fallback to MP3 if FLAC not available
       audioUrl = `/api/audio/download?videoId=${track.videoId}&format=flac`
+    }
+
+    if (track.platform === 'soundcloud' && track.permalink_url && !audioUrl) {
+      audioUrl = `/api/soundcloud/stream?url=${encodeURIComponent(track.permalink_url)}`
     }
 
     if (!audioUrl) {
@@ -56,53 +67,69 @@ export function Player({
       return
     }
 
-    // For SoundCloud, resolve stream URL if needed
-    if (track.platform === 'soundcloud' && track.permalink_url && !audioUrl.includes('/api/soundcloud/stream')) {
-      audioUrl = `/api/soundcloud/stream?url=${encodeURIComponent(track.permalink_url)}`
-    }
-
-    // Set up event listeners
     const handleLoadedMetadata = () => {
       if (audio.duration && !isNaN(audio.duration)) {
-        onDurationChange(audio.duration)
+        onDurationChangeRef.current?.(audio.duration)
       }
     }
 
     const handleTimeUpdate = () => {
       if (!isNaN(audio.currentTime)) {
-        onTimeUpdate(audio.currentTime)
+        onTimeUpdateRef.current?.(audio.currentTime)
       }
     }
 
     const handleEnded = () => {
-      onNext()
+      onNextRef.current?.()
     }
 
     const handleError = (e: Event) => {
-      console.error('Audio playback error:', e)
-      // Modern browsers support FLAC natively, so this should work
-      // If it fails, the error will be logged for debugging
+      const errorTarget = e.target as HTMLAudioElement | null
+      const mediaError = errorTarget?.error
+
+      let message = 'Audio playback error.'
+      if (mediaError) {
+        switch (mediaError.code) {
+          case mediaError.MEDIA_ERR_ABORTED:
+            message = 'Playback aborted.'
+            break
+          case mediaError.MEDIA_ERR_NETWORK:
+            message = 'Network error while downloading audio.'
+            break
+          case mediaError.MEDIA_ERR_DECODE:
+            message = 'Audio decoding error.'
+            break
+          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            message = 'Audio source not supported or not found.'
+            break
+          default:
+            message = `Audio error code ${mediaError.code}.`
+            break
+        }
+      }
+
+      console.error('[Player] Audio playback error:', message, mediaError, e)
+      onError?.(e instanceof Error ? e : new Error(message))
+
+      // Auto-skip after surfacing error to the parent/notification.
+      onNextRef.current?.()
     }
 
     const handleCanPlay = () => {
-      // Ensure duration is set when audio can play
       if (audio.duration && !isNaN(audio.duration)) {
-        onDurationChange(audio.duration)
+        onDurationChangeRef.current?.(audio.duration)
       }
     }
 
-    // Set audio source
     audio.src = audioUrl
     audio.load()
 
-    // Add event listeners
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('canplay', handleCanPlay)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('error', handleError)
 
-    // Cleanup function
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('canplay', handleCanPlay)
@@ -112,39 +139,32 @@ export function Player({
       audio.pause()
       audio.src = ''
     }
-  }, [track, onDurationChange, onTimeUpdate, onNext])
+  }, [track])
 
-  // Handle play/pause with proper error handling
   useEffect(() => {
     if (!audioRef.current) return
 
     const audio = audioRef.current
 
     if (isPlaying) {
-      // Use play() promise to handle abort errors gracefully
       const playPromise = audio.play()
-      
       if (playPromise !== undefined) {
-        playPromise
-          .catch((error: any) => {
-            // Ignore AbortError - it's expected when play() is interrupted
-            if (error.name !== 'AbortError') {
-              console.error('Playback error:', error)
-            }
-          })
+        playPromise.catch((error: any) => {
+          if (error.name !== 'AbortError') {
+            console.error('Playback error:', error)
+          }
+        })
       }
     } else {
       audio.pause()
     }
-  }, [isPlaying])
+  }, [isPlaying, track])
 
-  // Handle volume changes
   useEffect(() => {
     if (!audioRef.current) return
-    audioRef.current.volume = volume
+    audioRef.current.volume = Math.max(0, Math.min(1, volume))
   }, [volume])
 
-  // Handle seeking
   useEffect(() => {
     if (!audioRef.current || seekTo === undefined) return
     audioRef.current.currentTime = seekTo
