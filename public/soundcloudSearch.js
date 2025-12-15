@@ -26,35 +26,68 @@ export async function searchSoundCloud(query, options = {}) {
     }
 
     try {
-        // First attempt - standard endpoint
-        let response = await fetch(
-            `${baseUrl}/soundcloud-search?q=${encodeURIComponent(query.trim())}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
-                },
-                // Add timeout for better error handling
-                signal: options.signal || AbortSignal.timeout(10000) // 10 second timeout
+        const createRequestSignal = () => {
+            if (options.signal) {
+                return { signal: options.signal, clear: () => {} };
             }
-        );
+
+            if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+                return { signal: AbortSignal.timeout(10000), clear: () => {} };
+            }
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            return {
+                signal: controller.signal,
+                clear: () => clearTimeout(timeoutId)
+            };
+        };
+
+        const makeRequest = async (url) => {
+            const { signal, clear } = createRequestSignal();
+            try {
+                return await fetch(
+                    url,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Cache-Control': 'no-cache'
+                        },
+                        signal
+                    }
+                );
+            } finally {
+                clear();
+            }
+        };
+
+        const primaryUrl = `${baseUrl}/soundcloud-search?q=${encodeURIComponent(query.trim())}`;
+        const fallbackUrl = `${baseUrl}/soundcloud-search-alt?q=${encodeURIComponent(query.trim())}`;
+
+        let response;
+        try {
+            // First attempt - standard endpoint
+            response = await makeRequest(primaryUrl);
+        } catch (primaryError) {
+            console.error('Primary SoundCloud fetch failed, attempting fallback...', primaryError);
+            try {
+                response = await makeRequest(fallbackUrl);
+            } catch (fallbackError) {
+                console.error('Fallback SoundCloud fetch also failed', fallbackError);
+                throw fallbackError;
+            }
+        }
 
         // If first attempt fails with 500, try alternative endpoint
         if (!response.ok && response.status === 500) {
             console.warn('Primary SoundCloud endpoint failed, trying fallback...');
-            response = await fetch(
-                `${baseUrl}/soundcloud-search-alt?q=${encodeURIComponent(query.trim())}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    },
-                    // Include timeout fallback to prevent indefinite hanging
-                    signal: options.signal || AbortSignal.timeout(10000) // 10 second timeout
-                }
-            );
+            try {
+                response = await makeRequest(fallbackUrl);
+            } catch (fallbackError) {
+                console.error('Fallback SoundCloud fetch after 500 also failed', fallbackError);
+                throw fallbackError;
+            }
         }
 
         // Better error handling with detailed logging

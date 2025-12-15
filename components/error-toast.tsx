@@ -37,22 +37,48 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
   // Add new errors to toast queue
   const [shownTimestamps, setShownTimestamps] = useState<Set<number>>(new Set())
 
+  const handleDismiss = useCallback(
+    (id: string) => {
+      setToasts((prev) => {
+        const updated = prev.map((toast) => {
+          if (toast.id === id) {
+            // Clear timer if exists
+            if (toast.timerId) {
+              clearTimeout(toast.timerId)
+            }
+            return { ...toast, visible: false, timerId: undefined }
+          }
+          return toast
+        })
+        return updated
+      })
+
+      // Remove from state after animation
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((toast) => toast.id !== id))
+        onDismiss(id)
+      }, 300)
+    },
+    [onDismiss]
+  )
+
   useEffect(() => {
     if (errors.length === 0) return
 
-    const unseenErrors = errors.filter(e => !shownTimestamps.has(e.timestamp))
-    if (unseenErrors.length === 0) return
+    setShownTimestamps((prev) => {
+      const unseenErrors = errors.filter((e) => !prev.has(e.timestamp))
+      if (unseenErrors.length === 0) return prev
 
-    const newToasts: ToastItem[] = unseenErrors.map((error) => ({
-      id: `toast-${error.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
-      error,
-      visible: true,
-    }))
+      const newToasts: ToastItem[] = unseenErrors.map((error) => ({
+        id: `toast-${error.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
+        error,
+        visible: true,
+      }))
 
-    setToasts((prev) => [...prev, ...newToasts])
-    setShownTimestamps(prev => {
+      setToasts((prevToasts) => [...prevToasts, ...newToasts])
+
       const next = new Set(prev)
-      unseenErrors.forEach(e => next.add(e.timestamp))
+      unseenErrors.forEach((e) => next.add(e.timestamp))
       return next
     })
   }, [errors])
@@ -84,31 +110,6 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       timers.forEach((timer) => clearTimeout(timer))
     }
   }, [toasts, handleDismiss])
-
-  const handleDismiss = useCallback(
-    (id: string) => {
-      setToasts((prev) => {
-        const updated = prev.map((toast) => {
-          if (toast.id === id) {
-            // Clear timer if exists
-            if (toast.timerId) {
-              clearTimeout(toast.timerId)
-            }
-            return { ...toast, visible: false, timerId: undefined }
-          }
-          return toast
-        })
-        return updated
-      })
-
-      // Remove from state after animation
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((toast) => toast.id !== id))
-        onDismiss(id)
-      }, 300)
-    },
-    [onDismiss]
-  )
   const getSeverityClass = (severity?: string): string => {
     switch (severity) {
       case 'error':
@@ -296,19 +297,13 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
           transition: color 0.2s ease;
         }
 
-export default ErrorToast;
         .error-toast-dismiss:focus {
           outline: 2px solid var(--accent, #3498db);
           outline-offset: 2px;
         }
       `}</style>
     </div>
-  );
+  )
 }
 
-export default ErrorToast;
-  );
-}
-
-export default ErrorToast;
-// (No code necessary; duplicate exports and stray braces/parens removed.)
+export default ErrorToast

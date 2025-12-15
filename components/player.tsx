@@ -34,17 +34,34 @@ export function Player({
   onError,
 }: PlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const retryCountRef = useRef(0)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Keep latest callbacks without re-subscribing audio events.
   const onDurationChangeRef = useRef(onDurationChange)
   const onTimeUpdateRef = useRef(onTimeUpdate)
   const onNextRef = useRef(onNext)
+  const onErrorRef = useRef(onError)
+
+  const clearRetryTimer = () => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
+    }
+  }
 
   useEffect(() => {
     onDurationChangeRef.current = onDurationChange
     onTimeUpdateRef.current = onTimeUpdate
     onNextRef.current = onNext
-  }, [onDurationChange, onTimeUpdate, onNext])
+    onErrorRef.current = onError
+  }, [onDurationChange, onTimeUpdate, onNext, onError])
+
+  // Reset retry state whenever the track changes (including to null).
+  useEffect(() => {
+    retryCountRef.current = 0
+    clearRetryTimer()
+  }, [track])
 
   // Load track when it changes
   useEffect(() => {
@@ -83,6 +100,8 @@ export function Player({
       onNextRef.current?.()
     }
 
+    let isCancelled = false
+
     const handleError = (e: Event) => {
       const errorTarget = e.target as HTMLAudioElement | null
       const mediaError = errorTarget?.error
@@ -109,9 +128,37 @@ export function Player({
       }
 
       console.error('[Player] Audio playback error:', message, mediaError, e)
-      onError?.(e instanceof Error ? e : new Error(message))
+      onErrorRef.current?.(e instanceof Error ? e : new Error(message))
 
-      // Auto-skip after surfacing error to the parent/notification.
+      const maxRetries = 3
+      const attempt = retryCountRef.current + 1
+
+      if (attempt <= maxRetries) {
+        retryCountRef.current = attempt
+        const delay = Math.min(500 * 2 ** (attempt - 1), 4000)
+
+        clearRetryTimer()
+        retryTimerRef.current = setTimeout(() => {
+          if (isCancelled || !audioRef.current) return
+
+          audioRef.current.load()
+          const playPromise = audioRef.current.play()
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                retryCountRef.current = 0
+              })
+              .catch((err: any) => {
+                if (err?.name !== 'AbortError') {
+                  console.error('Retry playback error:', err)
+                }
+              })
+          }
+        }, delay)
+
+        return
+      }
+
       onNextRef.current?.()
     }
 
@@ -119,6 +166,7 @@ export function Player({
       if (audio.duration && !isNaN(audio.duration)) {
         onDurationChangeRef.current?.(audio.duration)
       }
+      retryCountRef.current = 0
     }
 
     audio.src = audioUrl
@@ -131,6 +179,8 @@ export function Player({
     audio.addEventListener('error', handleError)
 
     return () => {
+      isCancelled = true
+      clearRetryTimer()
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('timeupdate', handleTimeUpdate)
@@ -149,11 +199,15 @@ export function Player({
     if (isPlaying) {
       const playPromise = audio.play()
       if (playPromise !== undefined) {
-        playPromise.catch((error: any) => {
-          if (error.name !== 'AbortError') {
-            console.error('Playback error:', error)
-          }
-        })
+        playPromise
+          .then(() => {
+            retryCountRef.current = 0
+          })
+          .catch((error: any) => {
+            if (error.name !== 'AbortError') {
+              console.error('Playback error:', error)
+            }
+          })
       }
     } else {
       audio.pause()
