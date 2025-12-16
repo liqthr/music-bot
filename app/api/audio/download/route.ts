@@ -19,21 +19,17 @@ const CACHE_CLEANUP_LOCK_FILE = path.join(tmpdir(), 'music-bot-cache-cleanup.loc
 const CACHE_CLEANUP_LOCK_TTL_MS = 300000 // 5 minutes - lock expires after this time
 
 /**
- * Serve a YouTube video's audio as FLAC or MP3, using a local cache when available.
- *
- * Accepts `videoId` (required, a valid 11-character YouTube ID) and `format` (`flac` or `mp3`, default `flac`)
- * as query parameters. If a cached file exists the handler updates its access time and returns it with
- * appropriate `Content-Type`, `Content-Disposition`, and long-lived `Cache-Control` headers. On cache miss
- * the handler downloads and converts the audio using system tools and then returns the resulting file.
- *
- * Installation requirements (server): yt-dlp and ffmpeg must be available on PATH.
- *
- * @returns A NextResponse containing the audio bytes and headers on success, or a JSON error object with HTTP 400/500 on failure.
+ * Download audio from YouTube video and convert to FLAC or MP3
+ * Uses yt-dlp to extract audio and ffmpeg to convert formats
+ * 
+ * Installation requirements:
+ * - yt-dlp: https://github.com/yt-dlp/yt-dlp#installation
+ * - ffmpeg: https://ffmpeg.org/download.html
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const videoId = searchParams.get('videoId')
-  const format = searchParams.get('format') || 'flac' // 'flac' or 'mp3'
+  const formatParam = searchParams.get('format') || 'flac' // 'flac' or 'mp3'
 
   if (!videoId) {
     return NextResponse.json(
@@ -50,12 +46,14 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (!['flac', 'mp3'].includes(format)) {
+  if (!['flac', 'mp3'].includes(formatParam)) {
     return NextResponse.json(
       { error: 'format must be "flac" or "mp3"' },
       { status: 400 }
     )
   }
+
+  const format = formatParam as 'flac' | 'mp3'
 
   try {
     const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`
@@ -77,7 +75,7 @@ export async function GET(request: NextRequest) {
     try {
       const stats = await fs.stat(outputFile)
       // Update access time to track usage
-      await fs.utimes(outputFile, new Date(), stats.mtime)
+      await fs.utimes(outputFile, stats.atime, new Date())
       
       // Read file asynchronously
       const fileBuffer = await fs.readFile(outputFile)
@@ -119,11 +117,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Acquire a filesystem lock and run cache cleanup for the given temp directory, skipping cleanup if a valid lock exists.
- *
- * Attempts to create a distributed lock file to prevent concurrent cleanups. If a valid lock is already held by another process, the function exits without running cleanup. When the lock is acquired, invokes the cache cleanup routine and ensures the lock file is removed afterwards. Any errors during the lock workflow are logged and do not propagate.
- *
- * @param tempDir - Path to the temporary cache directory to be cleaned
+ * Attempt cache cleanup with distributed lock to prevent concurrent runs
  */
 async function attemptCacheCleanup(tempDir: string): Promise<void> {
   try {
@@ -167,13 +161,8 @@ async function attemptCacheCleanup(tempDir: string): Promise<void> {
 }
 
 /**
- * Remove expired or least-recently-used files from the cache directory to enforce age and size limits.
- *
- * Deletes files whose access time is older than CACHE_MAX_AGE_MS. If the cache still exceeds
- * CACHE_MAX_SIZE_BYTES, deletes files in order of oldest access time (falling back to modification time)
- * until the total size is under the limit. Logs removed files and any deletion or cleanup errors.
- *
- * @param tempDir - Path to the cache directory to clean
+ * Cleanup cache directory: remove files older than max age or trim to max size
+ * Uses access time (atime) for LRU behavior
  */
 async function cleanupCache(tempDir: string): Promise<void> {
   try {
@@ -246,13 +235,8 @@ async function cleanupCache(tempDir: string): Promise<void> {
 }
 
 /**
- * Download and extract audio from a YouTube URL into the specified file in FLAC or MP3 format.
- *
- * @param url - The YouTube video URL to download audio from.
- * @param outputPath - Destination file path (should end with `.flac` or `.mp3`); the produced file will be created or renamed to this path.
- * @param format - Desired audio format: `'flac'` or `'mp3'`.
- * @param timeoutMs - Maximum time in milliseconds to allow the external downloader to run before aborting.
- * @returns Resolves when the audio file is successfully produced at `outputPath`; rejects on timeout, if neither downloader is available, or on download/conversion failure.
+ * Download audio from YouTube using yt-dlp and convert to desired format
+ * @param timeoutMs Timeout in milliseconds (default: 60000)
  */
 function downloadAudioFromYouTube(
   url: string,
