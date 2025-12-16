@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@googleapis/youtube": "^29.0.0",
+    "@vercel/analytics": "^1.6.1",
     "axios": "^1.8.1",
     "next": "^14.2.0",
     "react": "^18.3.0",
