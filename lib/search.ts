@@ -6,7 +6,11 @@ import { searchResultCache } from './cache-manager'
 const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
 /**
- * Search Spotify for tracks
+ * Search Spotify for tracks matching the provided query.
+ *
+ * @param query - The search term; an empty or whitespace-only string yields an empty result.
+ * @param signal - Optional AbortSignal to cancel the request.
+ * @returns An array of `Track` objects for matching Spotify results. Each returned track includes `preview_url` and `platform` set to `'spotify'`. Returns an empty array if the query is blank, the request fails or is not OK, the response contains no tracks, or an error occurs (except for an `AbortError`, which is rethrown).
  */
 export async function searchSpotify(query: string, signal?: AbortSignal): Promise<Track[]> {
   if (!query.trim()) return []
@@ -136,7 +140,12 @@ export async function searchSoundCloud(query: string, signal?: AbortSignal): Pro
 }
 
 /**
- * Search YouTube for tracks
+ * Searches YouTube for tracks that match the given query.
+ *
+ * @param query - The text to search for.
+ * @param signal - Optional AbortSignal to cancel the network request.
+ * @returns An array of Track objects for matching videos; each track includes `videoId`, `stream_url` (FLAC download endpoint), and `preview_url` (MP3 preview endpoint). Returns an empty array when no results are found or on non-abort errors.
+ * @throws Throws the provided `AbortError` when the operation is aborted via `signal`.
  */
 export async function searchYouTube(query: string, signal?: AbortSignal): Promise<Track[]> {
   if (!query.trim()) return []
@@ -185,6 +194,14 @@ export async function searchYouTube(query: string, signal?: AbortSignal): Promis
 }
 
 /**
+ * Searches the specified platform for tracks matching the query.
+ *
+ * @param mode - The platform to query (`spotify`, `soundcloud`, or `youtube`)
+ * @param query - Search terms to use for the query
+ * @param options - Optional settings
+ * @param options.signal - AbortSignal to cancel the request
+ * @returns An array of matching `Track` objects (empty array on failure)
+ * @throws `AbortError` when the provided `signal` aborts the request
  * Search for a track on alternative platforms for fallback
  * Matches by track name and artist name
  */
@@ -305,6 +322,7 @@ export async function searchByMode(
     console.warn(`Search (${mode}) failed:`, error)
     return []
   }
+}
 
   // Apply advanced query matching (boolean operators, field searches, etc.)
   if (parsedQuery.hasOperators || parsedQuery.hasFields || parsedQuery.hasQuotes || parsedQuery.hasGrouping) {

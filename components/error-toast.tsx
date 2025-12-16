@@ -1,6 +1,17 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+// TODO: Update this import path when '@/lib/error-handler' module is present.
+type ErrorInfo = {
+  message: string
+  timestamp: number
+  severity?: string
+  track?: {
+    name: string
+    artists: Array<{ name: string }>
+  }
+  retryCount?: number
+}
 import type { ErrorInfo, ErrorSeverity } from '@/lib/error-handler'
 
 /**
@@ -25,6 +36,52 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
   // Add new errors to toast queue
+  const [shownTimestamps, setShownTimestamps] = useState<Set<number>>(new Set())
+
+  const handleDismiss = useCallback(
+    (id: string) => {
+      setToasts((prev) => {
+        const updated = prev.map((toast) => {
+          if (toast.id === id) {
+            // Clear timer if exists
+            if (toast.timerId) {
+              clearTimeout(toast.timerId)
+            }
+            return { ...toast, visible: false, timerId: undefined }
+          }
+          return toast
+        })
+        return updated
+      })
+
+      // Remove from state after animation
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((toast) => toast.id !== id))
+        onDismiss(id)
+      }, 300)
+    },
+    [onDismiss]
+  )
+
+  useEffect(() => {
+    if (errors.length === 0) return
+
+    setShownTimestamps((prev) => {
+      const unseenErrors = errors.filter((e) => !prev.has(e.timestamp))
+      if (unseenErrors.length === 0) return prev
+
+      const newToasts: ToastItem[] = unseenErrors.map((error) => ({
+        id: `toast-${error.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
+        error,
+        visible: true,
+      }))
+
+      setToasts((prevToasts) => [...prevToasts, ...newToasts])
+
+      const next = new Set(prev)
+      unseenErrors.forEach((e) => next.add(e.timestamp))
+      return next
+    })
   useEffect(() => {
     if (errors.length === 0) return
 
@@ -64,6 +121,7 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       timers.forEach((timer) => clearTimeout(timer))
     }
   }, [toasts, handleDismiss])
+  const getSeverityClass = (severity?: string): string => {
 
   const handleDismiss = useCallback(
     (id: string) => {
@@ -103,6 +161,7 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
     }
   }
 
+  const getSeverityIcon = (severity?: string): string => {
   const getSeverityIcon = (severity: ErrorSeverity): string => {
     switch (severity) {
       case 'error':
@@ -111,11 +170,18 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
         return 'fa-exclamation-triangle'
       case 'info':
         return 'fa-info-circle'
+
       default:
         return 'fa-info-circle'
     }
   }
 
+  // Fix: Use the toasts state variable which is presumably defined via useState in this component.
+  // Only reference the variable that is *definitely* defined.
+
+  if (!Array.isArray(toasts) || toasts.length === 0) {
+    return null
+  }
   if (toasts.length === 0) return null
 
   return (
@@ -284,3 +350,4 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
   )
 }
 
+export default ErrorToast

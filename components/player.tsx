@@ -25,6 +25,11 @@ interface PlayerProps {
   volume: number
   onVolumeChange: (volume: number) => void
   seekTo?: number
+  onError?: (err: Error | Event) => void
+}
+
+/**
+ * Renders a hidden HTML5 audio element that plays the provided track and forwards playback events.
   crossfadeSettings: CrossfadeSettings
   onCrossfadeStateChange: (isCrossfading: boolean) => void
   normalizationSettings: NormalizationSettings
@@ -74,6 +79,37 @@ export function Player({
   volume,
   onVolumeChange,
   seekTo,
+  onError,
+}: PlayerProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const retryCountRef = useRef(0)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Keep latest callbacks without re-subscribing audio events.
+  const onDurationChangeRef = useRef(onDurationChange)
+  const onTimeUpdateRef = useRef(onTimeUpdate)
+  const onNextRef = useRef(onNext)
+  const onErrorRef = useRef(onError)
+
+  const clearRetryTimer = () => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    onDurationChangeRef.current = onDurationChange
+    onTimeUpdateRef.current = onTimeUpdate
+    onNextRef.current = onNext
+    onErrorRef.current = onError
+  }, [onDurationChange, onTimeUpdate, onNext, onError])
+
+  // Reset retry state whenever the track changes (including to null).
+  useEffect(() => {
+    retryCountRef.current = 0
+    clearRetryTimer()
+  }, [track])
   crossfadeSettings,
   onCrossfadeStateChange,
   normalizationSettings,
@@ -271,6 +307,15 @@ export function Player({
       currentSourceNodeRef.current = nextSourceNodeRef.current
       currentGainNodeRef.current = nextGainNodeRef.current
 
+    let audioUrl = track.stream_url || track.preview_url
+
+    if (track.platform === 'youtube' && track.videoId) {
+      audioUrl = `/api/audio/download?videoId=${track.videoId}&format=flac`
+    }
+
+    if (track.platform === 'soundcloud' && track.permalink_url && !audioUrl) {
+      audioUrl = `/api/soundcloud/stream?url=${encodeURIComponent(track.permalink_url)}`
+    }
       nextAudioRef.current = tempAudio
       nextSourceNodeRef.current = tempSource
       nextGainNodeRef.current = tempGain
@@ -377,12 +422,13 @@ export function Player({
     // Set up event listeners
     const handleLoadedMetadata = () => {
       if (audio.duration && !isNaN(audio.duration)) {
-        onDurationChange(audio.duration)
+        onDurationChangeRef.current?.(audio.duration)
       }
     }
 
     const handleTimeUpdate = () => {
       if (!isNaN(audio.currentTime)) {
+        onTimeUpdateRef.current?.(audio.currentTime)
         onTimeUpdate(audio.currentTime)
 
         const duration = audio.duration
@@ -424,6 +470,69 @@ export function Player({
     }
 
     const handleEnded = () => {
+      onNextRef.current?.()
+    }
+
+    let isCancelled = false
+
+    const handleError = (e: Event) => {
+      const errorTarget = e.target as HTMLAudioElement | null
+      const mediaError = errorTarget?.error
+
+      let message = 'Audio playback error.'
+      if (mediaError) {
+        switch (mediaError.code) {
+          case mediaError.MEDIA_ERR_ABORTED:
+            message = 'Playback aborted.'
+            break
+          case mediaError.MEDIA_ERR_NETWORK:
+            message = 'Network error while downloading audio.'
+            break
+          case mediaError.MEDIA_ERR_DECODE:
+            message = 'Audio decoding error.'
+            break
+          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            message = 'Audio source not supported or not found.'
+            break
+          default:
+            message = `Audio error code ${mediaError.code}.`
+            break
+        }
+      }
+
+      console.error('[Player] Audio playback error:', message, mediaError, e)
+      onErrorRef.current?.(e instanceof Error ? e : new Error(message))
+
+      const maxRetries = 3
+      const attempt = retryCountRef.current + 1
+
+      if (attempt <= maxRetries) {
+        retryCountRef.current = attempt
+        const delay = Math.min(500 * 2 ** (attempt - 1), 4000)
+
+        clearRetryTimer()
+        retryTimerRef.current = setTimeout(() => {
+          if (isCancelled || !audioRef.current) return
+
+          audioRef.current.load()
+          const playPromise = audioRef.current.play()
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                retryCountRef.current = 0
+              })
+              .catch((err: any) => {
+                if (err?.name !== 'AbortError') {
+                  console.error('Retry playback error:', err)
+                }
+              })
+          }
+        }, delay)
+
+        return
+      }
+
+      onNextRef.current?.()
       if (!isManualSkipRef.current) {
         // If crossfade was active, it should have already triggered onNext
         if (!crossfadeStartedRef.current) {
@@ -539,9 +648,13 @@ export function Player({
 
     const handleCanPlay = () => {
       if (audio.duration && !isNaN(audio.duration)) {
-        onDurationChange(audio.duration)
+        onDurationChangeRef.current?.(audio.duration)
       }
+      retryCountRef.current = 0
     }
+
+    audio.src = audioUrl
+    audio.load()
 
     // Normalize track volume
     const applyNormalization = async () => {
@@ -683,6 +796,8 @@ export function Player({
 
     // Cleanup function - release audio buffers
     return () => {
+      isCancelled = true
+      clearRetryTimer()
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('timeupdate', handleTimeUpdate)
@@ -712,6 +827,8 @@ export function Player({
         }
       }
     }
+  }, [track])
+
   }, [track, nextTrack, crossfadeSettings, normalizationSettings, onDurationChange, onTimeUpdate, onNext, onCrossfadeStateChange, onNormalizationStateChange, createAudioSource, volume])
 
   // Re-apply normalization when settings change
@@ -933,6 +1050,13 @@ export function Player({
     if (isPlaying) {
       const playPromise = audio.play()
       if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            retryCountRef.current = 0
+          })
+          .catch((error: any) => {
+            if (error.name !== 'AbortError') {
+              console.error('Playback error:', error)
         playPromise.catch(async (error: any) => {
           if (error.name !== 'AbortError' && track) {
             // Handle play error with retry
@@ -989,10 +1113,13 @@ export function Player({
         nextAudioRef.current.pause()
       }
     }
+  }, [isPlaying, track])
   }, [isPlaying, track, onError, onRetryStatus, autoSkipOnError, onNext])
 
-  // Handle volume changes
   useEffect(() => {
+    if (!audioRef.current) return
+    audioRef.current.volume = Math.max(0, Math.min(1, volume))
+  }, [volume])
     baseVolumeRef.current = volume
     
     if (currentGainNodeRef.current) {
@@ -1024,7 +1151,6 @@ export function Player({
     }
   }, [volume, crossfadeSettings.duration])
 
-  // Handle seeking
   useEffect(() => {
     if (!currentAudioRef.current || seekTo === undefined) return
 

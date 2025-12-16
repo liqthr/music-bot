@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@googleapis/youtube": "^29.0.0",
+    "@sentry/nextjs": "^10.30.0",
+    "@vercel/analytics": "^1.6.1",
     "axios": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -19,6 +21,7 @@
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "vercel": "^50.0.1",
     "winston": "^3.13.0",
     "zod": "^3.23.0"
   },
@@ -27,7 +30,7 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^16.0.6",
+    "eslint-config-next": "^14.2.0",
     "typescript": "^5.4.0"
   }
 }
