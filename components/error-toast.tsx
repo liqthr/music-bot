@@ -1,27 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-// TODO: Update this import path when '@/lib/error-handler' module is present.
-type ErrorInfo = {
-  message: string
-  timestamp: number
-  severity?: string
-  track?: {
-    name: string
-    artists: Array<{ name: string }>
-  }
-  retryCount?: number
-}
 import type { ErrorInfo, ErrorSeverity } from '@/lib/error-handler'
 
-/**
- * Toast notification item
- */
 interface ToastItem {
   id: string
   error: ErrorInfo
   visible: boolean
-  timerId?: number | NodeJS.Timeout
+  timerId?: ReturnType<typeof setTimeout>
 }
 
 interface ErrorToastProps {
@@ -29,32 +15,19 @@ interface ErrorToastProps {
   onDismiss: (id: string) => void
 }
 
-/**
- * Error toast component for displaying error notifications
- */
 export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
-
-  // Add new errors to toast queue
-  const [shownTimestamps, setShownTimestamps] = useState<Set<number>>(new Set())
+  const [seenTimestamps, setSeenTimestamps] = useState<Set<number>>(new Set())
 
   const handleDismiss = useCallback(
     (id: string) => {
-      setToasts((prev) => {
-        const updated = prev.map((toast) => {
-          if (toast.id === id) {
-            // Clear timer if exists
-            if (toast.timerId) {
-              clearTimeout(toast.timerId)
-            }
-            return { ...toast, visible: false, timerId: undefined }
-          }
-          return toast
-        })
-        return updated
-      })
+      setToasts((prev) =>
+        prev.map((toast) =>
+          toast.id === id ? { ...toast, visible: false } : toast
+        )
+      )
 
-      // Remove from state after animation
+      // Remove after animation
       setTimeout(() => {
         setToasts((prev) => prev.filter((toast) => toast.id !== id))
         onDismiss(id)
@@ -63,40 +36,35 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
     [onDismiss]
   )
 
+  // Add new errors as toasts, de-duplicated by timestamp
   useEffect(() => {
-    if (errors.length === 0) return
+    if (!errors.length) return
 
-    setShownTimestamps((prev) => {
-      const unseenErrors = errors.filter((e) => !prev.has(e.timestamp))
-      if (unseenErrors.length === 0) return prev
+    setSeenTimestamps((prevSeen) => {
+      const nextSeen = new Set(prevSeen)
+      const newToasts: ToastItem[] = []
 
-      const newToasts: ToastItem[] = unseenErrors.map((error) => ({
-        id: `toast-${error.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
-        error,
-        visible: true,
-      }))
+      for (const error of errors) {
+        if (nextSeen.has(error.timestamp)) continue
+        nextSeen.add(error.timestamp)
+        newToasts.push({
+          id: `toast-${error.timestamp}-${Math.random().toString(36).slice(2, 9)}`,
+          error,
+          visible: true,
+        })
+      }
 
-      setToasts((prevToasts) => [...prevToasts, ...newToasts])
+      if (newToasts.length) {
+        setToasts((prev) => [...prev, ...newToasts])
+      }
 
-      const next = new Set(prev)
-      unseenErrors.forEach((e) => next.add(e.timestamp))
-      return next
+      return nextSeen
     })
-  useEffect(() => {
-    if (errors.length === 0) return
-
-    const newToasts: ToastItem[] = errors.map((error) => ({
-      id: `toast-${error.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
-      error,
-      visible: true,
-    }))
-
-    setToasts((prev) => [...prev, ...newToasts])
   }, [errors])
 
-  // Auto-dismiss toasts after 5 seconds
+  // Auto-dismiss after 5s
   useEffect(() => {
-    const timers: Map<string, number | NodeJS.Timeout> = new Map()
+    const timers = new Map<string, ReturnType<typeof setTimeout>>()
 
     toasts.forEach((toast) => {
       if (toast.visible && !toast.timerId) {
@@ -107,7 +75,6 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       }
     })
 
-    // Update toasts with timer IDs
     if (timers.size > 0) {
       setToasts((prev) =>
         prev.map((toast) => {
@@ -121,32 +88,6 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       timers.forEach((timer) => clearTimeout(timer))
     }
   }, [toasts, handleDismiss])
-  const getSeverityClass = (severity?: string): string => {
-
-  const handleDismiss = useCallback(
-    (id: string) => {
-      setToasts((prev) => {
-        const updated = prev.map((toast) => {
-          if (toast.id === id) {
-            // Clear timer if exists
-            if (toast.timerId) {
-              clearTimeout(toast.timerId)
-            }
-            return { ...toast, visible: false, timerId: undefined }
-          }
-          return toast
-        })
-        return updated
-      })
-
-      // Remove from state after animation
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((toast) => toast.id !== id))
-        onDismiss(id)
-      }, 300)
-    },
-    [onDismiss]
-  )
 
   const getSeverityClass = (severity: ErrorSeverity): string => {
     switch (severity) {
@@ -155,13 +96,11 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       case 'warning':
         return 'error-toast-warning'
       case 'info':
-        return 'error-toast-info'
       default:
         return 'error-toast-info'
     }
   }
 
-  const getSeverityIcon = (severity?: string): string => {
   const getSeverityIcon = (severity: ErrorSeverity): string => {
     switch (severity) {
       case 'error':
@@ -169,20 +108,12 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       case 'warning':
         return 'fa-exclamation-triangle'
       case 'info':
-        return 'fa-info-circle'
-
       default:
         return 'fa-info-circle'
     }
   }
 
-  // Fix: Use the toasts state variable which is presumably defined via useState in this component.
-  // Only reference the variable that is *definitely* defined.
-
-  if (!Array.isArray(toasts) || toasts.length === 0) {
-    return null
-  }
-  if (toasts.length === 0) return null
+  if (!toasts.length) return null
 
   return (
     <div className="error-toast-container">
@@ -201,14 +132,16 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
               <div className="error-toast-title">{toast.error.message}</div>
               {toast.error.track && (
                 <div className="error-toast-track">
-                  {toast.error.track.name} - {Array.isArray(toast.error.track.artists) && toast.error.track.artists.length > 0 ? toast.error.track.artists[0].name : 'Unknown'}
+                  {toast.error.track.name} -{' '}
+                  {toast.error.track.artists?.[0]?.name || 'Unknown'}
                 </div>
               )}
-              {toast.error.retryCount !== undefined && toast.error.retryCount > 0 && (
-                <div className="error-toast-retry">
-                  Retry attempt {toast.error.retryCount}
-                </div>
-              )}
+              {toast.error.retryCount !== undefined &&
+                toast.error.retryCount > 0 && (
+                  <div className="error-toast-retry">
+                    Retry attempt {toast.error.retryCount}
+                  </div>
+                )}
             </div>
             <button
               type="button"
@@ -282,18 +215,6 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
           font-size: 20px;
           flex-shrink: 0;
           margin-top: 2px;
-        }
-
-        .error-toast-error .error-toast-icon {
-          color: #e74c3c;
-        }
-
-        .error-toast-warning .error-toast-icon {
-          color: #f39c12;
-        }
-
-        .error-toast-info .error-toast-icon {
-          color: #3498db;
         }
 
         .error-toast-message {
