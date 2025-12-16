@@ -1,7 +1,6 @@
  "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import Head from "next/head";
 import { useEffect, useState } from "react";
 
 class SentryExampleFrontendError extends Error {
@@ -16,6 +15,26 @@ const isProd = process.env.NODE_ENV === "production";
 export default function Page() {
   const [hasSentError, setHasSentError] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+
+  // Set document title and description on the client.
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.title = "sentry-example-page";
+
+    const descriptionContent = "Test Sentry for your Next.js app!";
+    let descriptionMeta = document.querySelector<HTMLMetaElement>(
+      'meta[name="description"]',
+    );
+    if (!descriptionMeta) {
+      descriptionMeta = document.createElement("meta");
+      descriptionMeta.name = "description";
+      document.head.appendChild(descriptionMeta);
+    }
+    descriptionMeta.content = descriptionContent;
+  }, []);
 
   useEffect(() => {
     if (isProd) {
@@ -32,11 +51,6 @@ export default function Page() {
 
   return (
     <div>
-      <Head>
-        <title>sentry-example-page</title>
-        <meta name="description" content="Test Sentry for your Next.js app!" />
-      </Head>
-
       <main>
         <div className="flex-spacer" />
         <svg
