@@ -12,6 +12,7 @@ type ErrorInfo = {
   }
   retryCount?: number
 }
+import type { ErrorInfo, ErrorSeverity } from '@/lib/error-handler'
 
 /**
  * Toast notification item
@@ -81,6 +82,16 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       unseenErrors.forEach((e) => next.add(e.timestamp))
       return next
     })
+  useEffect(() => {
+    if (errors.length === 0) return
+
+    const newToasts: ToastItem[] = errors.map((error) => ({
+      id: `toast-${error.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
+      error,
+      visible: true,
+    }))
+
+    setToasts((prev) => [...prev, ...newToasts])
   }, [errors])
 
   // Auto-dismiss toasts after 5 seconds
@@ -111,6 +122,33 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
     }
   }, [toasts, handleDismiss])
   const getSeverityClass = (severity?: string): string => {
+
+  const handleDismiss = useCallback(
+    (id: string) => {
+      setToasts((prev) => {
+        const updated = prev.map((toast) => {
+          if (toast.id === id) {
+            // Clear timer if exists
+            if (toast.timerId) {
+              clearTimeout(toast.timerId)
+            }
+            return { ...toast, visible: false, timerId: undefined }
+          }
+          return toast
+        })
+        return updated
+      })
+
+      // Remove from state after animation
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((toast) => toast.id !== id))
+        onDismiss(id)
+      }, 300)
+    },
+    [onDismiss]
+  )
+
+  const getSeverityClass = (severity: ErrorSeverity): string => {
     switch (severity) {
       case 'error':
         return 'error-toast-error'
@@ -124,6 +162,7 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
   }
 
   const getSeverityIcon = (severity?: string): string => {
+  const getSeverityIcon = (severity: ErrorSeverity): string => {
     switch (severity) {
       case 'error':
         return 'fa-exclamation-circle'
@@ -143,6 +182,7 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
   if (!Array.isArray(toasts) || toasts.length === 0) {
     return null
   }
+  if (toasts.length === 0) return null
 
   return (
     <div className="error-toast-container">
@@ -295,6 +335,10 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
           justify-content: center;
           flex-shrink: 0;
           transition: color 0.2s ease;
+        }
+
+        .error-toast-dismiss:hover {
+          color: var(--text, #ffffff);
         }
 
         .error-toast-dismiss:focus {

@@ -30,15 +30,7 @@ async function tryInOrder(tasks, primarySignal = null) {
             }
             // Swallow fallback errors and continue to next provider
             console.warn(`Provider attempt ${i + 1} failed:`, err?.message || err);
- */
-async function tryInOrder(tasks) {
-    for (const task of tasks) {
-        try {
-            const results = await task();
-            if (Array.isArray(results) && results.length > 0) return results;
-        } catch (err) {
-            // Swallow and continue to next provider; UI will show message if all fail
-            console.warn('Provider attempt failed:', err?.message || err);
+            // Continue to next provider
         }
     }
     return [];
@@ -61,10 +53,6 @@ export const searchProvider = {
             (opts) => searchSoundCloud(query, opts),
             (opts) => searchYouTube(query, opts)
         ], signal);
-            () => searchSpotify(query, { signal }),
-            () => searchSoundCloud(query, { signal }),
-            () => searchYouTube(query, { signal })
-        ]);
     },
     async soundcloud(query, options = {}) {
         const { signal } = options;
@@ -73,10 +61,6 @@ export const searchProvider = {
             (opts) => searchSpotify(query, opts),
             (opts) => searchYouTube(query, opts)
         ], signal);
-            () => searchSoundCloud(query, { signal }),
-            () => searchSpotify(query, { signal }),
-            () => searchYouTube(query, { signal })
-        ]);
     },
     async youtube(query, options = {}) {
         const { signal } = options;
@@ -85,10 +69,6 @@ export const searchProvider = {
             (opts) => searchSpotify(query, opts),
             (opts) => searchSoundCloud(query, opts)
         ], signal);
-            () => searchYouTube(query, { signal }),
-            () => searchSpotify(query, { signal }),
-            () => searchSoundCloud(query, { signal })
-        ]);
     }
 };
 
@@ -96,9 +76,10 @@ export const searchProvider = {
  * Helper to search by mode key with consistent signature.
  */
 export async function searchByMode(mode, query, options = {}) {
-    const provider = searchProvider[mode] || searchProvider.spotify;
+    const provider =
+        Object.prototype.hasOwnProperty.call(searchProvider, mode) && typeof searchProvider[mode] === "function"
+            ? searchProvider[mode]
+            : searchProvider.spotify;
+
     return provider(query, options);
 }
-}
-
-
