@@ -1,3 +1,4 @@
+pm
 let _clientConfig = null;
 async function loadClientConfig() {
   if (_clientConfig) return _clientConfig;
