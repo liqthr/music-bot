@@ -35,9 +35,11 @@ export async function searchSpotify(query: string, signal?: AbortSignal): Promis
         uri: item.uri,
       }))
   } catch (error: any) {
-    if (error.name === 'AbortError') throw error
+    if (error.name === 'AbortError') {
+      return []
+    }
     console.error('Spotify search error:', error)
-    return []
+    throw error
   }
 }
 
@@ -114,9 +116,11 @@ export async function searchSoundCloud(query: string, signal?: AbortSignal): Pro
         permalink_url: item.permalink_url || '',
       }))
   } catch (error: any) {
-    if (error.name === 'AbortError') throw error
+    if (error.name === 'AbortError') {
+      return []
+    }
     console.error('SoundCloud search error:', error)
-    return []
+    throw error
   }
 }
 
@@ -159,9 +163,11 @@ export async function searchYouTube(query: string, signal?: AbortSignal): Promis
         preview_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=mp3`,
       }))
   } catch (error: any) {
-    if (error.name === 'AbortError') throw error
+    if (error.name === 'AbortError') {
+      return []
+    }
     console.error('YouTube search error:', error)
-    return []
+    throw error
   }
 }
 
@@ -262,9 +268,12 @@ export async function searchByMode(
 
     results = await searchFunctions[mode]()
   } catch (error: any) {
-    if (error.name === 'AbortError') throw error
+    if (error.name === 'AbortError') {
+      // Suppress user-initiated cancellations
+      return []
+    }
     console.warn(`Search (${mode}) failed:`, error)
-    return []
+    throw error
   }
 
   if (

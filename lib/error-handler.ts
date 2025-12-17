@@ -328,6 +328,12 @@ export class ErrorHandler {
    * Check if error is retryable
    */
   isRetryable(error: any): boolean {
+    // If we already have an ErrorInfo, use its type directly
+    if (error && typeof error === 'object' && 'type' in error) {
+      const errorInfo = error as ErrorInfo
+      return errorInfo.type !== 'not_found' && errorInfo.type !== 'forbidden'
+    }
+
     const errorInfo = getErrorMessage(error, 0)
     return errorInfo.type !== 'not_found' && errorInfo.type !== 'forbidden'
   }

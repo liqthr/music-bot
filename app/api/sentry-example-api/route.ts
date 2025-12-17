@@ -1,5 +1,4 @@
 import * as Sentry from "@sentry/nextjs";
-
 export const dynamic = "force-dynamic";
 
 class SentryExampleAPIError extends Error {
@@ -9,13 +8,7 @@ class SentryExampleAPIError extends Error {
   }
 }
 
-/**
- * Sentry demo API route.
- *
- * In non-production environments this intentionally throws so you can verify
- * Sentry error capture. In production it returns 404 so that no
- * error‑producing demo endpoint is exposed.
- */
+// A faulty API route to test Sentry's error monitoring
 export function GET(): Response {
   if (process.env.NODE_ENV === "production") {
     // Do not expose this demo endpoint in production

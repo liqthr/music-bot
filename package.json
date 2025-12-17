@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@googleapis/youtube": "^29.0.0",
-    "@sentry/nextjs": "^10.30.0",
+    "@sentry/nextjs": "^10.31.0",
     "@vercel/analytics": "^1.6.1",
     "axios": "^1.8.1",
     "cors": "^2.8.5",

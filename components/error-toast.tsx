@@ -22,9 +22,13 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
   const handleDismiss = useCallback(
     (id: string) => {
       setToasts((prev) =>
-        prev.map((toast) =>
-          toast.id === id ? { ...toast, visible: false } : toast
-        )
+        prev.map((toast) => {
+          if (toast.id !== id) return toast
+          if (toast.timerId) {
+            clearTimeout(toast.timerId)
+          }
+          return { ...toast, visible: false, timerId: undefined }
+        })
       )
 
       // Remove after animation

@@ -1,6 +1,7 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
+import Head from "next/head";
 import { useEffect, useState } from "react";
 
 class SentryExampleFrontendError extends Error {
@@ -15,24 +16,6 @@ const isProd = process.env.NODE_ENV === "production";
 export default function Page() {
   const [hasSentError, setHasSentError] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
-
-  // Set document title and description on the client.
-  useEffect(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-
-    document.title = "sentry-example-page";
-
-    const descriptionContent = "Test Sentry for your Next.js app!";
-    let descriptionMeta = document.querySelector('meta[name="description"]');
-    if (!descriptionMeta) {
-      descriptionMeta = document.createElement("meta");
-      (descriptionMeta as HTMLMetaElement).name = "description";
-      document.head.appendChild(descriptionMeta);
-    }
-    (descriptionMeta as HTMLMetaElement).content = descriptionContent;
-  }, []);
 
   useEffect(() => {
     if (isProd) {
@@ -49,6 +32,11 @@ export default function Page() {
 
   return (
     <div>
+      <Head>
+        <title>sentry-example-page</title>
+        <meta name="description" content="Test Sentry for your Next.js app!" />
+      </Head>
+
       <main>
         <div className="flex-spacer" />
         <svg
@@ -72,65 +60,63 @@ export default function Page() {
           </p>
         ) : (
           <>
-        <p className="description">
-          Click the button below, and view the sample error on the Sentry{" "}
-          <a
-            target="_blank"
-            rel="noopener"
-            href="https://liqthr.sentry.io/issues/?project=4510544368435280"
-          >
-            Issues Page
-          </a>
-          . For more details about setting up Sentry,{" "}
-          <a
-            target="_blank"
-            rel="noopener"
-            href="https://docs.sentry.io/platforms/javascript/guides/nextjs/"
-          >
-            read our docs
-          </a>
-          .
-        </p>
-
-        <button
-          type="button"
-          onClick={async () => {
-                Sentry.logger.info(
-                  "User clicked the button, throwing a sample error",
-                );
-            await Sentry.startSpan(
-              {
-                name: "Example Frontend/Backend Span",
-                op: "test",
-              },
-              async () => {
-                const res = await fetch("/api/sentry-example-api");
-                if (!res.ok) {
-                  setHasSentError(true);
-                }
-              },
-            );
-            throw new SentryExampleFrontendError(
-              "This error is raised on the frontend of the example page.",
-            );
-          }}
-          disabled={!isConnected}
-        >
-          <span>Throw Sample Error</span>
-        </button>
-
-        {hasSentError ? (
-          <p className="success">Error sent to Sentry.</p>
-        ) : !isConnected ? (
-          <div className="connectivity-error">
-            <p>
-                  It looks like network requests to Sentry are being blocked,
-                  which will prevent errors from being captured. Try disabling
-                  your ad-blocker to complete the test.
+            <p className="description">
+              Click the button below, and view the sample error on the Sentry{" "}
+              <a
+                target="_blank"
+                rel="noopener"
+                href="https://liqthr-u3.sentry.io/issues/?project=4510549423423568"
+              >
+                Issues Page
+              </a>
+              . For more details about setting up Sentry,{" "}
+              <a
+                target="_blank"
+                rel="noopener"
+                href="https://docs.sentry.io/platforms/javascript/guides/nextjs/"
+              >
+                read our docs
+              </a>
+              .
             </p>
-          </div>
-        ) : (
-          <div className="success_placeholder" />
+
+            <button
+              type="button"
+              onClick={async () => {
+                Sentry.logger.info("User clicked the button, throwing a sample error");
+                await Sentry.startSpan(
+                  {
+                    name: "Example Frontend/Backend Span",
+                    op: "test",
+                  },
+                  async () => {
+                    const res = await fetch("/api/sentry-example-api");
+                    if (!res.ok) {
+                      setHasSentError(true);
+                    }
+                  },
+                );
+                throw new SentryExampleFrontendError(
+                  "This error is raised on the frontend of the example page.",
+                );
+              }}
+              disabled={!isConnected}
+            >
+              <span>Throw Sample Error</span>
+            </button>
+
+            {hasSentError ? (
+              <p className="success">Error sent to Sentry.</p>
+            ) : !isConnected ? (
+              <div className="connectivity-error">
+                <p>
+                  It looks like network requests to Sentry are being blocked, which
+                  will prevent errors from being captured. Try disabling your
+                  ad-blocker to complete the test.
+                </p>
+              </div>
+            ) : (
+              <div className="success_placeholder" />
             )}
           </>
         )}
