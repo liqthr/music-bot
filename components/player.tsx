@@ -125,7 +125,7 @@ export function Player({
       }
 
       // Simple single retry
-      onRetryStatus?.('Retrying playback… 1/1')
+      onRetryStatus?.('Retrying playback…')
       audio.load()
       audio
         .play()

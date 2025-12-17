@@ -93,8 +93,17 @@ export function SearchFiltersComponent({ filters, onFiltersChange, isOpen, onTog
         custom,
       },
     }
-    setLocalFilters(newFilters)
-    onFiltersChange(newFilters)
+    // Ensure preset is 'custom' as type DurationPreset (not string)
+    const typedFilters = {
+      ...newFilters,
+      duration: {
+        ...newFilters.duration,
+        // preset should explicitly be "custom" as DurationPreset
+        preset: 'custom' as const,
+      },
+    }
+    setLocalFilters(typedFilters)
+    onFiltersChange(typedFilters)
   }
 
   // Handle platform toggle
