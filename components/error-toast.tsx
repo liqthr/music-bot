@@ -1,22 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-// TODO: Update this import path when '@/lib/error-handler' module is present.
-type ErrorInfo = {
-  message: string
-  timestamp: number
-  severity?: string
-  track?: {
-    name: string
-    artists: Array<{ name: string }>
-  }
-  retryCount?: number
-}
 import type { ErrorInfo, ErrorSeverity } from '@/lib/error-handler'
 
-/**
- * Toast notification item
- */
 interface ToastItem {
   id: string
   error: ErrorInfo
@@ -29,139 +15,83 @@ interface ErrorToastProps {
   onDismiss: (id: string) => void
 }
 
-/**
- * Error toast component for displaying error notifications
- */
-export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
+export const ErrorToast = ({ errors, onDismiss }: ErrorToastProps) => {
   const [toasts, setToasts] = useState<ToastItem[]>([])
-
-  // Add new errors to toast queue
-  const [shownTimestamps, setShownTimestamps] = useState<Set<number>>(new Set())
+  const [seenTimestamps, setSeenTimestamps] = useState<Set<number>>(new Set())
 
   const handleDismiss = useCallback(
     (id: string) => {
-      setToasts((prev) => {
-        const updated = prev.map((toast) => {
-          if (toast.id === id) {
-            // Clear timer if exists
-            if (toast.timerId) {
-              clearTimeout(toast.timerId)
-            }
-            return { ...toast, visible: false, timerId: undefined }
-          }
-          return toast
-        })
-        return updated
-      })
+      setToasts((prev) =>
+        prev.map((toast) =>
+          toast.id === id ? { ...toast, visible: false, timerId: undefined } : toast,
+        ),
+      )
 
-      // Remove from state after animation
+      // Remove after exit animation
       setTimeout(() => {
         setToasts((prev) => prev.filter((toast) => toast.id !== id))
         onDismiss(id)
-      }, 300)
+      }, 200)
     },
-    [onDismiss]
+    [onDismiss],
   )
 
+  // Add new errors as toasts (deduplicated by timestamp)
   useEffect(() => {
-    if (errors.length === 0) return
+    if (!errors.length) return
 
-    setShownTimestamps((prev) => {
-      const unseenErrors = errors.filter((e) => !prev.has(e.timestamp))
-      if (unseenErrors.length === 0) return prev
-
-      const newToasts: ToastItem[] = unseenErrors.map((error) => ({
-        id: `toast-${error.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
-        error,
-        visible: true,
-      }))
-
-      setToasts((prevToasts) => [...prevToasts, ...newToasts])
-
+    setSeenTimestamps((prev) => {
       const next = new Set(prev)
-      unseenErrors.forEach((e) => next.add(e.timestamp))
+      const newToasts: ToastItem[] = []
+
+      for (const error of errors) {
+        if (next.has(error.timestamp)) continue
+        next.add(error.timestamp)
+        newToasts.push({
+          id: `toast-${error.timestamp}-${Math.random().toString(36).slice(2, 8)}`,
+          error,
+          visible: true,
+        })
+      }
+
+      if (newToasts.length) {
+        setToasts((prevToasts) => [...prevToasts, ...newToasts])
+      }
+
       return next
     })
-  useEffect(() => {
-    if (errors.length === 0) return
-
-    const newToasts: ToastItem[] = errors.map((error) => ({
-      id: `toast-${error.timestamp}-${Math.random().toString(36).substring(2, 9)}`,
-      error,
-      visible: true,
-    }))
-
-    setToasts((prev) => [...prev, ...newToasts])
   }, [errors])
 
-  // Auto-dismiss toasts after 5 seconds
+  // Auto-dismiss after 5 seconds
   useEffect(() => {
-    const timers: Map<string, number | NodeJS.Timeout> = new Map()
+    const timers: Array<NodeJS.Timeout> = []
 
-    toasts.forEach((toast) => {
-      if (toast.visible && !toast.timerId) {
-        const timer = setTimeout(() => {
-          handleDismiss(toast.id)
-        }, 5000)
-        timers.set(toast.id, timer)
-      }
-    })
-
-    // Update toasts with timer IDs
-    if (timers.size > 0) {
-      setToasts((prev) =>
-        prev.map((toast) => {
-          const timerId = timers.get(toast.id)
-          return timerId ? { ...toast, timerId } : toast
-        })
-      )
-    }
+    setToasts((prev) =>
+      prev.map((toast) => {
+        if (!toast.visible || toast.timerId) return toast
+        const timer = setTimeout(() => handleDismiss(toast.id), 5000)
+        timers.push(timer)
+        return { ...toast, timerId: timer }
+      }),
+    )
 
     return () => {
-      timers.forEach((timer) => clearTimeout(timer))
+      timers.forEach((t) => clearTimeout(t))
     }
-  }, [toasts, handleDismiss])
-  const getSeverityClass = (severity?: string): string => {
-
-  const handleDismiss = useCallback(
-    (id: string) => {
-      setToasts((prev) => {
-        const updated = prev.map((toast) => {
-          if (toast.id === id) {
-            // Clear timer if exists
-            if (toast.timerId) {
-              clearTimeout(toast.timerId)
-            }
-            return { ...toast, visible: false, timerId: undefined }
-          }
-          return toast
-        })
-        return updated
-      })
-
-      // Remove from state after animation
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((toast) => toast.id !== id))
-        onDismiss(id)
-      }, 300)
-    },
-    [onDismiss]
-  )
+  }, [toasts.length, handleDismiss])
 
   const getSeverityClass = (severity: ErrorSeverity): string => {
     switch (severity) {
       case 'error':
-        return 'error-toast-error'
+        return 'border-red-500/80 bg-red-950/80 text-red-50'
       case 'warning':
-        return 'error-toast-warning'
+        return 'border-amber-500/80 bg-amber-950/80 text-amber-50'
       case 'info':
-        return 'error-toast-info'
       default:
-        return 'error-toast-info'
+        return 'border-sky-500/80 bg-sky-950/80 text-sky-50'
     }
   }
 
-  const getSeverityIcon = (severity?: string): string => {
   const getSeverityIcon = (severity: ErrorSeverity): string => {
     switch (severity) {
       case 'error':
@@ -169,185 +99,52 @@ export function ErrorToast({ errors, onDismiss }: ErrorToastProps) {
       case 'warning':
         return 'fa-exclamation-triangle'
       case 'info':
-        return 'fa-info-circle'
-
       default:
         return 'fa-info-circle'
     }
   }
 
-  // Fix: Use the toasts state variable which is presumably defined via useState in this component.
-  // Only reference the variable that is *definitely* defined.
-
-  if (!Array.isArray(toasts) || toasts.length === 0) {
+  if (!toasts.length) {
     return null
   }
-  if (toasts.length === 0) return null
 
   return (
-    <div className="error-toast-container">
+    <div className="pointer-events-none fixed right-4 top-4 z-50 flex max-w-md flex-col gap-2">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`error-toast ${getSeverityClass(toast.error.severity)} ${
-            toast.visible ? 'visible' : 'dismissing'
-          }`}
+          className={`pointer-events-auto flex transform items-start gap-3 rounded-lg border px-3 py-2 text-sm shadow-lg ring-1 ring-black/10 transition-all ${
+            toast.visible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'
+          } ${getSeverityClass(toast.error.severity)}`}
         >
-          <div className="error-toast-content">
-            <div className="error-toast-icon">
-              <i className={`fas ${getSeverityIcon(toast.error.severity)}`}></i>
-            </div>
-            <div className="error-toast-message">
-              <div className="error-toast-title">{toast.error.message}</div>
-              {toast.error.track && (
-                <div className="error-toast-track">
-                  {toast.error.track.name} - {Array.isArray(toast.error.track.artists) && toast.error.track.artists.length > 0 ? toast.error.track.artists[0].name : 'Unknown'}
-                </div>
-              )}
-              {toast.error.retryCount !== undefined && toast.error.retryCount > 0 && (
-                <div className="error-toast-retry">
-                  Retry attempt {toast.error.retryCount}
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="error-toast-dismiss"
-              onClick={() => handleDismiss(toast.id)}
-              aria-label="Dismiss notification"
-            >
-              <i className="fas fa-times"></i>
-            </button>
+          <div className="mt-1 text-base">
+            <i className={`fas ${getSeverityIcon(toast.error.severity)}`} aria-hidden="true" />
           </div>
+          <div className="flex-1 space-y-1">
+            <div className="font-medium leading-snug">{toast.error.message}</div>
+            {toast.error.track && (
+              <div className="text-xs opacity-80">
+                {toast.error.track.name} –{' '}
+                {toast.error.track.artists?.[0]?.name ?? 'Unknown artist'}
+              </div>
+            )}
+            {typeof toast.error.retryCount === 'number' && toast.error.retryCount > 0 && (
+              <div className="text-[11px] italic opacity-80">
+                Retry attempt {toast.error.retryCount}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => handleDismiss(toast.id)}
+            aria-label="Dismiss notification"
+            className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs opacity-80 transition hover:bg-white/10 hover:opacity-100"
+          >
+            <i className="fas fa-times" aria-hidden="true" />
+          </button>
         </div>
       ))}
-      <style jsx>{`
-        .error-toast-container {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          z-index: 10000;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          max-width: 400px;
-          pointer-events: none;
-        }
-
-        .error-toast {
-          background: var(--bg-secondary, #2a2a2a);
-          border-radius: 8px;
-          padding: 12px 16px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          pointer-events: auto;
-          opacity: 0;
-          transform: translateX(100%);
-          transition: opacity 0.3s ease, transform 0.3s ease;
-          border-left: 4px solid;
-        }
-
-        .error-toast.visible {
-          opacity: 1;
-          transform: translateX(0);
-        }
-
-        .error-toast.dismissing {
-          opacity: 0;
-          transform: translateX(100%);
-        }
-
-        .error-toast-error {
-          border-left-color: #e74c3c;
-        }
-
-        .error-toast-warning {
-          border-left-color: #f39c12;
-        }
-
-        .error-toast-info {
-          border-left-color: #3498db;
-        }
-
-        .error-toast-content {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          flex: 1;
-        }
-
-        .error-toast-icon {
-          font-size: 20px;
-          flex-shrink: 0;
-          margin-top: 2px;
-        }
-
-        .error-toast-error .error-toast-icon {
-          color: #e74c3c;
-        }
-
-        .error-toast-warning .error-toast-icon {
-          color: #f39c12;
-        }
-
-        .error-toast-info .error-toast-icon {
-          color: #3498db;
-        }
-
-        .error-toast-message {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .error-toast-title {
-          font-weight: 600;
-          color: var(--text, #ffffff);
-          margin-bottom: 4px;
-          font-size: 14px;
-        }
-
-        .error-toast-track {
-          font-size: 12px;
-          color: var(--text-dim, #999);
-          margin-top: 4px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .error-toast-retry {
-          font-size: 11px;
-          color: var(--text-dim, #999);
-          margin-top: 2px;
-          font-style: italic;
-        }
-
-        .error-toast-dismiss {
-          background: none;
-          border: none;
-          color: var(--text-dim, #999);
-          cursor: pointer;
-          padding: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          transition: color 0.2s ease;
-        }
-
-        .error-toast-dismiss:hover {
-          color: var(--text, #ffffff);
-        }
-
-        .error-toast-dismiss:focus {
-          outline: 2px solid var(--accent, #3498db);
-          outline-offset: 2px;
-        }
-      `}</style>
     </div>
   )
 }
 
-export default ErrorToast
