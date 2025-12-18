@@ -295,20 +295,20 @@ export function parseSearchQuery(query: string): ParsedQuery {
           else if (op === '<') operator = '<'
           else if (op === '=') operator = '='
           fields.push({
-            field: token.field,
+            field: token.field as 'artist' | 'album' | 'year' | 'duration',
             value: opMatch[2],
             operator,
           })
         } else {
           fields.push({
-            field: token.field,
+            field: token.field as 'artist' | 'album' | 'year' | 'duration',
             value: valueStr,
             operator,
           })
         }
       } else {
         fields.push({
-          field: token.field,
+          field: token.field as 'artist' | 'album' | 'year' | 'duration',
           value: valueStr,
         })
       }

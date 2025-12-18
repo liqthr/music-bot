@@ -53,8 +53,9 @@ function extractGenre(track: Track): string | null {
   }
 
   // Check album genres first if available
-  if (track.album?.genres && Array.isArray(track.album.genres) && track.album.genres.length > 0) {
-    return track.album.genres[0]
+  const album = track.album as any
+  if (album?.genres && Array.isArray(album.genres) && album.genres.length > 0) {
+    return album.genres[0]
   }
 
   // Try to infer from track name/artist (heuristic with word-boundary matching)

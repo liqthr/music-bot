@@ -48,7 +48,7 @@ export function addToHistory(query: string, mode: SearchMode, filters?: SearchFi
  * @returns Array of search history items, most recent first
  */
 export function getRecentSearches(): SearchHistoryItem[] {
-  return getItem<SearchHistoryItem[]>(HISTORY_STORAGE_KEY, [])
+  return getItem<SearchHistoryItem[]>(HISTORY_STORAGE_KEY, []) || []
 }
 
 /**
@@ -101,7 +101,7 @@ export function saveSearch(
  * @returns Array of saved searches
  */
 export function getSavedSearches(): SavedSearch[] {
-  return getItem<SavedSearch[]>(SAVED_SEARCHES_STORAGE_KEY, [])
+  return getItem<SavedSearch[]>(SAVED_SEARCHES_STORAGE_KEY, []) || []
 }
 
 /**
