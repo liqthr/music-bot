@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { youtube_v3 } from '@googleapis/youtube'
 import axios from 'axios'
-
-// Initialize YouTube API client
-const youtube = new youtube_v3.Youtube({
-  auth: process.env.YOUTUBE_API_KEY,
-})
 
 /**
  * Spotify search endpoint

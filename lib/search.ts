@@ -183,7 +183,7 @@ export async function searchYouTube(query: string, signal?: AbortSignal): Promis
         platform: 'youtube' as const,
         videoId: item.id.videoId,
         // YouTube tracks use our download endpoint to get FLAC/MP3 audio
-        stream_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=flac`,
+        stream_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=mp3`,
         preview_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=mp3`,
       }))
   } catch (error: any) {

@@ -46,6 +46,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(response.data.collection)
     }
 
+    // If no collection, check if it's a single track object
+    if (response.data?.kind === 'track') {
+      return NextResponse.json([response.data])
+    }
+
     return NextResponse.json(response.data)
   } catch (error: any) {
     // Try fallback endpoint
