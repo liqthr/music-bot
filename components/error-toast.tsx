@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { ErrorInfo, ErrorSeverity } from '@/lib/error-handler'
 
 interface ToastItem {
@@ -18,6 +18,7 @@ interface ErrorToastProps {
 export const ErrorToast = ({ errors, onDismiss }: ErrorToastProps) => {
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [seenTimestamps, setSeenTimestamps] = useState<Set<number>>(new Set())
+  const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const handleDismiss = useCallback(
     (id: string) => {
@@ -64,21 +65,43 @@ export const ErrorToast = ({ errors, onDismiss }: ErrorToastProps) => {
 
   // Auto-dismiss after 5 seconds
   useEffect(() => {
-    const timers: Array<NodeJS.Timeout> = []
+    const createdIds: string[] = []
 
-    setToasts((prev) =>
-      prev.map((toast) => {
+    setToasts((prev) => {
+      let changed = false
+
+      const next = prev.map((toast) => {
         if (!toast.visible || toast.timerId) return toast
+
         const timer = setTimeout(() => handleDismiss(toast.id), 5000)
-        timers.push(timer)
+        timersRef.current[toast.id] = timer
+        createdIds.push(toast.id)
+        changed = true
+
         return { ...toast, timerId: timer }
-      }),
-    )
+      })
+
+      return changed ? next : prev
+    })
 
     return () => {
-      timers.forEach((t) => clearTimeout(t))
+      if (!createdIds.length) return
+
+      createdIds.forEach((id) => {
+        const timer = timersRef.current[id]
+        if (timer) {
+          clearTimeout(timer)
+          delete timersRef.current[id]
+        }
+      })
+
+      setToasts((prev) =>
+        prev.map((toast) =>
+          createdIds.includes(toast.id) ? { ...toast, timerId: undefined } : toast,
+        ),
+      )
     }
-  }, [toasts.length, handleDismiss])
+  }, [handleDismiss])
 
   const getSeverityClass = (severity: ErrorSeverity): string => {
     switch (severity) {

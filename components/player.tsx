@@ -98,10 +98,18 @@ export const Player = ({
     }
 
     const handleError = () => {
-      const message = 'Playback error occurred.'
+      const mediaError = audio.error
+      const errorCodes: Record<number, string> = {
+        1: 'MEDIA_ERR_ABORTED',
+        2: 'MEDIA_ERR_NETWORK', 
+        3: 'MEDIA_ERR_DECODE',
+        4: 'MEDIA_ERR_SRC_NOT_SUPPORTED',
+      }
+      const errorType = mediaError?.code ? errorCodes[mediaError.code] : 'unknown'
+      const message = mediaError?.message || `Playback error: ${errorType}`
       if (onError && track) {
         const errorInfo: ErrorInfo = {
-          type: 'unknown',
+          type: errorType as ErrorInfo['type'],
           message,
           severity: 'error',
           timestamp: Date.now(),

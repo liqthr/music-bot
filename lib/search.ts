@@ -318,8 +318,16 @@ export async function searchByMode(
 
     results = await searchFunctions[mode]()
   } catch (error: any) {
-    if (error.name !== 'AbortError') throw error
-    console.warn(`Search (${mode}) failed:`, error)
+    if (error.name === 'AbortError') {
+      // Aborted searches are expected when the user types quickly or changes platform.
+      // Don't treat them as errors or spam the console; just return an empty result.
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`Search (${mode}) aborted`)
+      }
+      return []
+    }
+
+    console.error(`Search (${mode}) failed:`, error)
     return []
   }
 
