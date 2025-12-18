@@ -322,10 +322,14 @@ export async function searchByMode(
     console.warn(`Search (${mode}) failed:`, error)
     return []
   }
-}
 
   // Apply advanced query matching (boolean operators, field searches, etc.)
-  if (parsedQuery.hasOperators || parsedQuery.hasFields || parsedQuery.hasQuotes || parsedQuery.hasGrouping) {
+  if (
+    parsedQuery.hasOperators ||
+    parsedQuery.hasFields ||
+    parsedQuery.hasQuotes ||
+    parsedQuery.hasGrouping
+  ) {
     results = filterTracksByQuery(results, parsedQuery)
   }
 
