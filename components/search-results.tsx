@@ -9,6 +9,7 @@ interface SearchResultsProps {
   onPlay: (track: Track) => void
   onAddToQueue: (track: Track) => void
   isLoading: boolean
+  currentTrackId?: string
 }
 
 /**
@@ -35,7 +36,7 @@ function isTrackPlayable(track: Track): boolean {
  * @param isLoading - When true, render a "Searching..." placeholder instead of results.
  * @returns The search results container JSX or `null` when there are no results to render.
  */
-export function SearchResults({ results, onPlay, onAddToQueue, isLoading }: SearchResultsProps) {
+export function SearchResults({ results, onPlay, onAddToQueue, isLoading, currentTrackId }: SearchResultsProps) {
   const [enrichedTracks, setEnrichedTracks] = useState<Track[]>(results)
 
   // Enrich SoundCloud tracks with quality info when results change
@@ -135,9 +136,13 @@ export function SearchResults({ results, onPlay, onAddToQueue, isLoading }: Sear
         const artistName = track.artists?.[0]?.name || 'Unknown Artist'
         const playable = isTrackPlayable(track)
         const qualityBadge = getQualityBadge(track)
+        const isActive = currentTrackId === track.id
 
         return (
-          <div key={track.id} className="result-item">
+          <div
+            key={track.id}
+            className={`result-item ${isActive ? 'ring-2 ring-violet-500/80 bg-white/5' : ''}`}
+          >
             <img src={imageUrl} alt={track.name} />
             <div className="song-info">
               <div className="song-title">{track.name}</div>

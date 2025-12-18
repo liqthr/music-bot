@@ -96,6 +96,23 @@ export function SearchBar({ onSearch, onModeChange, currentMode, isLoading, onFi
     [currentMode, onSearch, debounceTimer]
   )
 
+  const handleInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        const trimmed = query.trim()
+        if (!trimmed || queryErrors.length > 0) {
+          return
+        }
+
+        event.preventDefault()
+        onSearch(trimmed, currentMode)
+        setShowHistory(false)
+        setHistory(getRecentSearches())
+      }
+    },
+    [currentMode, onSearch, query, queryErrors]
+  )
+
   const handleInputFocus = useCallback(() => {
     setShowHistory(true)
     setHistory(getRecentSearches())
@@ -226,6 +243,7 @@ export function SearchBar({ onSearch, onModeChange, currentMode, isLoading, onFi
             value={query}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
+            onKeyDown={handleInputKeyDown}
             disabled={isLoading}
           />
           <button

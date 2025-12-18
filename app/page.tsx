@@ -960,7 +960,13 @@ export default function MusicPlayerPage() {
               isOpen={showFilters}
               onToggle={() => setShowFilters(!showFilters)}
             />
-            <SearchResults results={filteredResults} onPlay={handlePlay} onAddToQueue={handleAddToQueue} isLoading={isSearching} />
+            <SearchResults
+              results={filteredResults}
+              onPlay={handlePlay}
+              onAddToQueue={handleAddToQueue}
+              isLoading={isSearching}
+              currentTrackId={currentTrack?.id}
+            />
           </div>
         </div>
       </header>
