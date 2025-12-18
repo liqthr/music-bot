@@ -117,10 +117,18 @@ body {
   right: 0;
   z-index: 100;
   padding: 1.5rem 2rem;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 90%, transparent) 0%, color-mix(in srgb, var(--bg) 0%, transparent) 100%);
-  backdrop-filter: blur(20px);
+  /* Slightly stronger solid background with softer blur so scrolling content
+     isn’t overly smeared behind the header. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg) 96%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 88%, transparent) 60%,
+    transparent 100%
+  );
+  backdrop-filter: blur(10px);
   animation: slideDown 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   transition: background 0.3s ease;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.6);
 }
 
 @keyframes slideDown {
@@ -149,12 +157,19 @@ body {
 }
 
 /* Search Section */
+.search-bar-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
 .search-section {
   display: flex;
   align-items: center;
   gap: 1rem;
   flex: 1;
-  max-width: 500px;
+  min-width: 0;
 }
 
 .platform-toggle {
@@ -192,11 +207,13 @@ body {
   opacity: 0.7;
 }
 
-/* Search Section */
 .search-wrapper-container {
   position: relative;
   flex: 1;
-  max-width: 500px;
+  max-width: 800px;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
 
 .search-section {
@@ -1405,7 +1422,10 @@ body {
 /* Search Filters */
 .search-filters-container {
   position: relative;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
 }
 
 .search-filters-toggle {

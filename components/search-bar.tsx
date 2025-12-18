@@ -202,7 +202,7 @@ export function SearchBar({ onSearch, onModeChange, currentMode, isLoading, onFi
   const hasHistory = history.length > 0 || savedSearches.length > 0
 
   return (
-    <>
+    <div className="search-bar-root">
       <div className="search-section">
         <div className="platform-toggle">
           <button
@@ -469,6 +469,6 @@ export function SearchBar({ onSearch, onModeChange, currentMode, isLoading, onFi
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
