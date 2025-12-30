@@ -60,16 +60,9 @@ import { memoryMonitor, needsMemoryCleanup, formatBytes } from '@/lib/memory-mon
 import { searchResultCache, trackMetadataCache, albumArtCache } from '@/lib/cache-manager'
 import { ErrorToast } from '@/components/error-toast'
 import type { ErrorInfo } from '@/lib/error-handler'
+import { validateSearchQuery } from '@/lib/validation'
 
-/**
- * Format time in MM:SS format
- */
-function formatTime(seconds: number): string {
-  if (isNaN(seconds) || seconds === Infinity) return '00:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins < 10 ? '0' + mins : mins}:${secs < 10 ? '0' + secs : secs}`
-}
+import { formatTime } from '@/lib/utils/time-formatter'
 
 /**
  * Main music player page
@@ -178,6 +171,18 @@ export default function MusicPlayerPage() {
   // Handle search
   const handleSearch = useCallback(
     async (query: string, mode: SearchMode) => {
+      // 1. Validation: Check if query is valid before proceeding
+      const validation = validateSearchQuery(query)
+      if (!validation.isValid) {
+        setErrors(prev => [...prev, {
+          type: 'unknown',
+          message: validation.error || 'Invalid search query',
+          severity: 'warning',
+          timestamp: Date.now()
+        }])
+        return
+      }
+
       // Abort previous search
       if (searchControllerRef.current) {
         searchControllerRef.current.abort()
