@@ -3,7 +3,7 @@ import { Track } from './types'
 /**
  * Validation utility for the Music Bot project.
  * This module ensures data integrity across the application, 
- * meeting the OCR A-Level NEA requirements for robust validation.
+ * ensuring robust validation and data integrity throughout the application.
  */
 
 /**

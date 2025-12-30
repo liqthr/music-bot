@@ -1,6 +1,6 @@
 /**
  * Utility functions for time formatting and manipulation
- * This module is part of the refactoring to improve modularity for OCR A-Level NEA.
+ * This module is part of the refactoring to improve modularity and code reuse.
  */
 
 /**

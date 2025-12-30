@@ -1,6 +1,6 @@
 # Iterative Development Log - Music Bot Project
 
-This document provides a comprehensive record of the iterative development process for the Music Bot project, specifically tailored to meet the requirements of the OCR A-Level Computer Science NEA. The development followed a structured approach, moving from initial prototyping to a refined, modular, and well-documented solution.
+This document provides a comprehensive record of the iterative development process for the Music Bot project. The development followed a structured approach, moving from initial prototyping to a refined, modular, and well-documented solution suitable for long-term maintenance and scalability.
 
 ## Phase 1: Initial Research and Prototyping
 
@@ -22,7 +22,7 @@ The logic for time formatting was moved to a new utility module, `lib/utils/time
 
 ## Phase 3: Implementing Robust Validation and Error Handling
 
-The third phase addressed the need for data integrity and system stability. A dedicated validation module, `lib/validation.ts`, was implemented to ensure that all data entering the system meets predefined criteria. This is a critical requirement for the OCR NEA, demonstrating an understanding of defensive programming.
+The third phase addressed the need for data integrity and system stability. A dedicated validation module, `lib/validation.ts`, was implemented to ensure that all data entering the system meets predefined criteria. This is a critical step in building a production-ready application, demonstrating an understanding of defensive programming.
 
 | Validation Type | Implementation | Purpose |
 |-----------------|----------------|---------|
@@ -34,4 +34,4 @@ The third phase addressed the need for data integrity and system stability. A de
 
 The final phase of this development cycle focused on enhancing the maintainability of the codebase. Comprehensive **JSDoc** comments were added to all major functions and interfaces. These comments explain not only what the code does but also the justification for specific implementation choices.
 
-By providing clear documentation and a modular structure, the system is now well-prepared for future maintenance and expansion. This iterative process has resulted in a solution that is both technically robust and aligned with the academic requirements of the A-Level coursework.
+By providing clear documentation and a modular structure, the system is now well-prepared for future maintenance and expansion. This iterative process has resulted in a solution that is both technically robust and professionally structured.
