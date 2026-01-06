@@ -960,6 +960,8 @@ export default function MusicPlayerPage() {
               isOpen={showFilters}
               onToggle={() => setShowFilters(!showFilters)}
             />
+          </div>
+          <div className="search-results-wrapper">
             <SearchResults
               results={filteredResults}
               onPlay={handlePlay}
@@ -967,6 +969,7 @@ export default function MusicPlayerPage() {
               isLoading={isSearching}
               currentTrackId={currentTrack?.id}
             />
+          </div>
           </div>
         </div>
       </header>

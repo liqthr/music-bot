@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+/* Font Awesome 6.5.1 - Stable version with all icon sets */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
 
 :root {
   /* Theme CSS variables - will be set by theme manager */
@@ -156,12 +157,131 @@ body {
   background-clip: text;
 }
 
+/* Icon System - Base Styles */
+.fas, .far, .fab, .fal, .fad {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 6 Pro", sans-serif;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  speak: none;
+}
+
+.fas, .fad {
+  font-weight: 900;
+}
+
+.far {
+  font-weight: 400;
+}
+
+.fal {
+  font-weight: 300;
+}
+
+.fab {
+  font-family: "Font Awesome 6 Brands", sans-serif;
+  font-weight: 400;
+}
+
+/* Icon Loading State */
+.icon-loading {
+  opacity: 0.3;
+  animation: iconPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* Icon Fallback - Show text label if icon fails to load */
+.icon-with-fallback {
+  position: relative;
+}
+
+.icon-with-fallback::after {
+  content: attr(data-fallback);
+  position: absolute;
+  opacity: 0;
+  font-family: inherit;
+  font-size: 0.75em;
+  pointer-events: none;
+}
+
+/* Ensure icons are visible even if font hasn't loaded */
+.platform-btn i,
+.control-btn i,
+.volume-icon i,
+.search-icon,
+.mini-player-btn i,
+.search-filters-toggle i {
+  min-width: 1em;
+  min-height: 1em;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Icon visibility fallback - ensure icons show even during font load */
+i.fas, i.fab, i.far {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Platform brand icons - ensure proper sizing */
+.platform-btn .fa-spotify,
+.platform-btn .fa-soundcloud,
+.platform-btn .fa-youtube {
+  font-size: var(--icon-lg);
+  line-height: 1;
+}
+
+/* Playback control icons */
+.control-btn .fa-play,
+.control-btn .fa-pause,
+.control-btn .fa-forward,
+.control-btn .fa-backward {
+  font-size: var(--icon-lg);
+  line-height: 1;
+}
+
+.play-btn .fa-play,
+.play-btn .fa-pause {
+  font-size: var(--icon-xl);
+/* Icon Size Variables */
+:root {
+  --icon-xs: calc(12px * var(--font-size-multiplier));
+  --icon-sm: calc(16px * var(--font-size-multiplier));
+  --icon-md: calc(20px * var(--font-size-multiplier));
+  --icon-lg: calc(24px * var(--font-size-multiplier));
+  --icon-xl: calc(32px * var(--font-size-multiplier));
+  --icon-2xl: calc(40px * var(--font-size-multiplier));
+}
+}
+
+/* Icon Size Variables */
+:root {
+  --icon-xs: 12px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-xl: 32px;
+  --icon-2xl: 40px;
+}
+
 /* Search Section */
 .search-bar-root {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
   flex: 1;
+  min-width: 0;
 }
 
 .search-section {
@@ -179,11 +299,14 @@ body {
   padding: 0.4rem;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .platform-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -191,20 +314,37 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 1.2rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: var(--icon-lg);
   color: var(--text);
-  opacity: 0.4;
+  opacity: 0.5;
+  position: relative;
+}
+
+.platform-btn i {
+  font-size: var(--icon-lg);
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .platform-btn.active {
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   opacity: 1;
   transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
-.platform-btn:hover {
-  opacity: 0.7;
+.platform-btn:hover:not(.active) {
+  opacity: 0.8;
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.platform-btn:active {
+  transform: scale(0.98);
 }
 
 .search-wrapper-container {
@@ -212,49 +352,14 @@ body {
   flex: 1;
   max-width: 800px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
+  min-width: 0;
 }
 
-.search-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.platform-toggle {
-  display: flex;
-  gap: 0.5rem;
-  background: var(--bg-mid);
-  padding: 0.4rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.platform-btn {
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 1.2rem;
-  color: var(--text);
-  opacity: 0.4;
-}
-
-.platform-btn.active {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  opacity: 1;
-  transform: scale(1.05);
-}
-
-.platform-btn:hover {
-  opacity: 0.7;
+.search-results-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .search-wrapper {
@@ -484,6 +589,17 @@ body {
   transform: translateY(-50%);
   color: var(--text-dim);
   pointer-events: none;
+  font-size: var(--icon-md);
+  width: var(--icon-md);
+  height: var(--icon-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.search-input:focus ~ .search-icon {
+  color: var(--primary);
 }
 
 /* Main Container */
@@ -637,40 +753,74 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2rem;
+  gap: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
 .control-btn {
   width: 48px;
   height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border: none;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 50%;
   color: var(--text);
-  font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
-.control-btn:hover {
+.control-btn i {
+  font-size: var(--icon-lg);
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.control-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.control-btn:active:not(:disabled) {
   transform: scale(1.05);
+}
+
+.control-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .play-btn {
   width: 64px;
   height: 64px;
+  min-width: 64px;
+  min-height: 64px;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
-  font-size: 1.5rem;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
 }
 
-.play-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 8px 24px rgba(255, 51, 102, 0.4);
+.play-btn i {
+  font-size: var(--icon-xl);
+  width: var(--icon-xl);
+  height: var(--icon-xl);
+}
+
+.play-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5);
+}
+
+.play-btn:active:not(:disabled) {
+  transform: scale(1.05);
 }
 
 /* Volume */
@@ -685,13 +835,28 @@ body {
 
 .volume-icon {
   color: var(--text-dim);
-  font-size: 1.1rem;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  flex-shrink: 0;
+}
+
+.volume-icon i {
+  font-size: var(--icon-lg);
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .volume-icon:hover {
   color: var(--text);
+  transform: scale(1.1);
 }
 
 .volume-slider {
@@ -1370,6 +1535,8 @@ body {
 .mini-player-btn {
   width: 40px;
   height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   border: none;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-dim);
@@ -1378,14 +1545,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.mini-player-btn:hover {
+.mini-player-btn i {
+  font-size: var(--icon-md);
+  width: var(--icon-md);
+  height: var(--icon-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-player-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text);
-  transform: scale(1.05);
+  transform: scale(1.1);
 }
 
 .mini-player-btn.active {
@@ -1396,13 +1571,22 @@ body {
 .mini-player-play-btn {
   width: 48px;
   height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: var(--text);
-  font-size: 1rem;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
-.mini-player-play-btn:hover {
+.mini-player-play-btn i {
+  font-size: var(--icon-lg);
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+}
+
+.mini-player-play-btn:hover:not(:disabled) {
   transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5);
 }
 
 .mini-player-time {
@@ -1431,21 +1615,43 @@ body {
 .search-filters-toggle {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
   background: var(--bg-secondary);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: var(--text);
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+}
+
+.search-filters-toggle i {
+  font-size: var(--icon-lg);
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-filters-toggle span:not(.filter-count-badge) {
+  display: none;
 }
 
 .search-filters-toggle:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+}
+
+.search-filters-toggle:active {
+  transform: translateY(0);
 }
 
 .filter-count-badge {
@@ -2486,12 +2692,41 @@ body {
     max-width: 100%;
   }
   
+  .search-wrapper-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  .search-bar-root {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
   .player-card {
     padding: 2rem;
   }
   
   .track-title {
     font-size: 1.5rem;
+  }
+  
+  .platform-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+  
+  .platform-btn i {
+    font-size: var(--icon-md);
+  }
+  
+  .search-filters-toggle {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
   }
 }
 
@@ -2509,14 +2744,44 @@ body {
   }
   
   .control-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 1rem;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .control-btn i {
+    font-size: var(--icon-md);
   }
   
   .play-btn {
     width: 56px;
     height: 56px;
-    font-size: 1.3rem;
+    min-width: 56px;
+    min-height: 56px;
+  }
+  
+  .play-btn i {
+    font-size: var(--icon-lg);
+  }
+  
+  .platform-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+  
+  .platform-btn i {
+    font-size: var(--icon-md);
+  }
+  
+  .volume-icon {
+    width: var(--icon-md);
+    height: var(--icon-md);
+  }
+  
+  .volume-icon i {
+    font-size: var(--icon-md);
   }
 }
