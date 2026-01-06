@@ -75,7 +75,7 @@ export function autoSaveQueue(tracks: Track[], repeatMode: RepeatMode): void {
  * @returns Auto-saved queue or null
  */
 export function getAutoSavedQueue(): SavedQueue | null {
-  return getItem<SavedQueue>(AUTOSAVE_QUEUE_KEY, null)
+  return getItem<SavedQueue>(AUTOSAVE_QUEUE_KEY)
 }
 
 /**
@@ -92,7 +92,7 @@ export function clearAutoSave(): void {
 export function getSavedQueues(): SavedQueue[] {
   const queues = getItem<SavedQueue[]>(SAVED_QUEUES_STORAGE_KEY, [])
   // Filter out autosave from regular saved queues and sort by updatedAt (most recent first)
-  return queues
+  return (queues || [])
     .filter((q) => q.id !== '_autosave')
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }

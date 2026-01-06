@@ -183,7 +183,7 @@ export async function searchYouTube(query: string, signal?: AbortSignal): Promis
         platform: 'youtube' as const,
         videoId: item.id.videoId,
         // YouTube tracks use our download endpoint to get FLAC/MP3 audio
-        stream_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=flac`,
+        stream_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=mp3`,
         preview_url: `${baseUrl}/api/audio/download?videoId=${item.id.videoId}&format=mp3`,
       }))
   } catch (error: any) {
@@ -264,19 +264,28 @@ export async function findTrackOnAlternativePlatforms(
  * This ensures users see results only from their selected platform
  * Supports advanced query operators (AND, OR, NOT, field-specific, etc.)
  */
+/**
+ * Orchestrates the search process based on the selected platform mode.
+ * This function acts as a factory/strategy selector, delegating the actual
+ * search implementation to platform-specific functions.
+ * 
+ * @param mode - The platform to search on ('spotify', 'soundcloud', 'youtube')
+ * @param query - The search string entered by the user
+ * @param options - Optional parameters including AbortSignal for cancellation and filters
+ * @returns A promise that resolves to an array of normalized Track objects
+ */
 export async function searchByMode(
   mode: SearchMode,
   query: string,
   options: { signal?: AbortSignal; filters?: any } = {}
 ): Promise<Track[]> {
+  // 1. Validation: Ensure query is not empty
   if (!query.trim()) return []
 
   const { signal, filters } = options
 
-  // Create cache key from query, mode, and filters
+  // 2. Performance Optimization: Check cache for existing results
   const cacheKey = `${mode}:${query}:${JSON.stringify(filters || {})}`
-
-  // Check cache first
   const cached = searchResultCache.get(cacheKey)
   if (cached) {
     if (process.env.NODE_ENV === 'development') {
@@ -285,16 +294,15 @@ export async function searchByMode(
     return cached
   }
 
-  // Parse query to extract field-specific searches and operators
+  // 3. Parsing: Analyze query for advanced operators (AND, OR, NOT)
   const parsedQuery = parseSearchQuery(query)
 
-  // If query has syntax errors, return empty results
+  // 4. Error Handling: Return empty if query syntax is invalid
   if (parsedQuery.errors.length > 0) {
     return []
   }
 
-  // Extract base query (without field-specific searches for API calls)
-  // Field-specific searches and operators will be applied as filters after API response
+  // 5. Pre-processing: Strip operators for the raw API call
   let baseQuery = query
     .replace(/\b(artist|album|year|duration):[^\s)]+/gi, '')
     .replace(/\b(AND|OR|NOT)\b/gi, ' ')
@@ -302,12 +310,11 @@ export async function searchByMode(
     .replace(/\s+/g, ' ')
     .trim()
 
-  // If base query is empty but we have field searches, use a wildcard
   if (!baseQuery && parsedQuery.hasFields) {
     baseQuery = '*'
   }
 
-  // Perform platform-specific search
+  // 6. Execution: Call the appropriate platform API
   let results: Track[] = []
   try {
     const searchFunctions = {
@@ -319,8 +326,6 @@ export async function searchByMode(
     results = await searchFunctions[mode]()
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      // Aborted searches are expected when the user types quickly or changes platform.
-      // Don't treat them as errors or spam the console; just return an empty result.
       if (process.env.NODE_ENV === 'development') {
         console.debug(`Search (${mode}) aborted`)
       }
@@ -331,7 +336,7 @@ export async function searchByMode(
     return []
   }
 
-  // Apply advanced query matching (boolean operators, field searches, etc.)
+  // 7. Post-processing: Apply boolean logic and field filters locally
   if (
     parsedQuery.hasOperators ||
     parsedQuery.hasFields ||
@@ -341,7 +346,7 @@ export async function searchByMode(
     results = filterTracksByQuery(results, parsedQuery)
   }
 
-  // Cache results
+  // 8. Persistence: Store results in cache for future use
   searchResultCache.set(cacheKey, results)
 
   if (process.env.NODE_ENV === 'development') {

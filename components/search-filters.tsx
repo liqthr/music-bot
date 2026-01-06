@@ -85,11 +85,11 @@ export function SearchFiltersComponent({ filters, onFiltersChange, isOpen, onTog
     }
 
     const custom = { ...localFilters.duration?.custom, [field]: seconds }
-    const newFilters = {
+    const newFilters: SearchFilters = {
       ...localFilters,
       duration: {
         ...localFilters.duration,
-        preset: 'custom',
+        preset: 'custom' as DurationPreset,
         custom,
       },
     }

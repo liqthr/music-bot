@@ -2,7 +2,20 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['i.scdn.co', 'i1.sndcdn.com', 'i.ytimg.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'i.scdn.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i1.sndcdn.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com',
+      },
+    ],
   },
   // Ensure static files are served correctly
   async headers() {
@@ -20,14 +33,11 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
-
-
-// Injected content via Sentry wizard below
-
-const { withSentryConfig } = require("@sentry/nextjs");
-
-module.exports = withSentryConfig(module.exports, {
+// Conditionally apply Sentry only if auth token is available
+if (process.env.SENTRY_AUTH_TOKEN) {
+  const { withSentryConfig } = require("@sentry/nextjs");
+  
+  module.exports = withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
@@ -62,4 +72,7 @@ module.exports = withSentryConfig(module.exports, {
       removeDebugLogging: true,
     },
   },
-});
+  });
+} else {
+  module.exports = nextConfig;
+}

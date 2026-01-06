@@ -56,20 +56,13 @@ import {
 import type { ThemeSettings } from '@/lib/types'
 import { applyFilters, getDefaultFilters } from '@/lib/search-filter-utils'
 import { addToHistory } from '@/lib/search-history'
-import { memoryMonitor, needsMemoryCleanup } from '@/lib/memory-monitor'
+import { memoryMonitor, needsMemoryCleanup, formatBytes } from '@/lib/memory-monitor'
 import { searchResultCache, trackMetadataCache, albumArtCache } from '@/lib/cache-manager'
 import { ErrorToast } from '@/components/error-toast'
 import type { ErrorInfo } from '@/lib/error-handler'
+import { validateSearchQuery } from '@/lib/validation'
 
-/**
- * Format time in MM:SS format
- */
-function formatTime(seconds: number): string {
-  if (isNaN(seconds) || seconds === Infinity) return '00:00'
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins < 10 ? '0' + mins : mins}:${secs < 10 ? '0' + secs : secs}`
-}
+import { formatTime } from '@/lib/utils/time-formatter'
 
 /**
  * Main music player page
@@ -178,6 +171,18 @@ export default function MusicPlayerPage() {
   // Handle search
   const handleSearch = useCallback(
     async (query: string, mode: SearchMode) => {
+      // 1. Validation: Check if query is valid before proceeding
+      const validation = validateSearchQuery(query)
+      if (!validation.isValid) {
+        setErrors(prev => [...prev, {
+          type: 'unknown',
+          message: validation.error || 'Invalid search query',
+          severity: 'warning',
+          timestamp: Date.now()
+        }])
+        return
+      }
+
       // Abort previous search
       if (searchControllerRef.current) {
         searchControllerRef.current.abort()
@@ -334,7 +339,7 @@ export default function MusicPlayerPage() {
           
           // Add success notification
           const fallbackError: ErrorInfo = {
-            type: 'info',
+            type: 'network',
             message: `Switched to ${alternativeTrack.platform === 'soundcloud' ? 'SoundCloud' : alternativeTrack.platform === 'youtube' ? 'YouTube' : 'Spotify'} version`,
             severity: 'info',
             timestamp: Date.now(),
@@ -344,7 +349,7 @@ export default function MusicPlayerPage() {
         } else if (autoSkipOnError) {
           // No alternative found - skip if auto-skip is enabled
           const skipError: ErrorInfo = {
-            type: 'error',
+            type: 'unknown',
             message: 'Skipped unplayable track',
             severity: 'info',
             timestamp: Date.now(),
@@ -375,7 +380,7 @@ export default function MusicPlayerPage() {
           setIsPlaying(true)
           
           const fallbackError: ErrorInfo = {
-            type: 'info',
+            type: 'network',
             message: `Switched to ${alternativeTrack.platform === 'soundcloud' ? 'SoundCloud' : alternativeTrack.platform === 'youtube' ? 'YouTube' : 'Spotify'} version`,
             severity: 'info',
             timestamp: Date.now(),

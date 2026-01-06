@@ -108,21 +108,25 @@ export const Player = ({
       const errorType = mediaError?.code ? errorCodes[mediaError.code] : 'unknown'
       const message = mediaError?.message || `Playback error: ${errorType}`
       if (onError && track) {
-        const errorInfo: ErrorInfo = {
-          type: errorType as ErrorInfo['type'],
-          message,
-          severity: 'error',
-          timestamp: Date.now(),
-          track,
+          const errorInfo: ErrorInfo = {
+            // Use 'decode' for format errors (MEDIA_ERR_DECODE or MEDIA_ERR_SRC_NOT_SUPPORTED)
+            type: (mediaError?.code === 3 || mediaError?.code === 4) ? 'decode' : 'network',
+            message,
+            severity: 'error',
+            timestamp: Date.now(),
+            track,
+          }
+          onError(errorInfo)
         }
-        onError(errorInfo)
-      }
-      if (autoSkipOnError) {
-        if (onRetryStatus) {
-          onRetryStatus('')
+        
+        // Only auto-skip if autoSkipOnError is true AND the error is not a format error
+        // Format errors (code 3 or 4) are non-retryable and should be handled by the parent component's fallback logic
+        if (autoSkipOnError && mediaError?.code !== 3 && mediaError?.code !== 4) {
+          if (onRetryStatus) {
+            onRetryStatus('')
+          }
+          onNext()
         }
-        onNext()
-      }
     }
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
