@@ -975,7 +975,6 @@ export default function MusicPlayerPage() {
               currentTrackId={currentTrack?.id}
             />
           </div>
-          </div>
         </div>
       </header>
 
