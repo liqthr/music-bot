@@ -2,8 +2,8 @@
 const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_URL: process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}'
-      : "https://localhost:3000",
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000",
     },
   reactStrictMode: true,
   images: {
