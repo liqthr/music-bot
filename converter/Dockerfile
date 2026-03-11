@@ -5,7 +5,7 @@ RUN pip3 install --break-system-packages yt-dlp
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --production
+RUN npm install --production
 COPY server.js .
 
 EXPOSE 3001
