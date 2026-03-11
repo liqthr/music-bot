@@ -6,28 +6,43 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
     "@googleapis/youtube": "^29.0.0",
     "@sentry/nextjs": "^10.30.0",
+    "@tanstack/react-query": "^5.90.21",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.36.4",
     "@vercel/analytics": "^1.6.1",
     "@vercel/blob": "^2.0.0",
+    "@vitest/ui": "^4.0.18",
     "axios": "^1.8.1",
+    "jsdom": "^28.1.0",
+    "msw": "^2.12.10",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "zod": "^3.23.0"
+    "vitest": "^4.0.18",
+    "zod": "^3.23.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
     "@types/node": "^20.12.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vite": "^7.3.1"
   }
 }

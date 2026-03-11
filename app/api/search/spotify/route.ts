@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import axios from 'axios'
+import { normalizeSpotifyTrack } from '@/lib/normalizers'
+import { validateOrigin } from '@/lib/api/originValidation'
 
-/**
- * Spotify search endpoint
- * Searches Spotify tracks using client credentials flow
- */
 export async function GET(request: NextRequest) {
+  const originCheck = validateOrigin(request)
+  if (originCheck) return originCheck
+
   const searchParams = request.nextUrl.searchParams
   const query = searchParams.get('q')
 
@@ -17,7 +18,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get client credentials token
     const clientId = process.env.SPOTIFY_CLIENT_ID
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
 
@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    return NextResponse.json(searchResponse.data)
+    // Normalize tracks to our canonical format
+    const tracks = searchResponse.data.tracks.items.map(normalizeSpotifyTrack)
+
+    return NextResponse.json({ tracks })
   } catch (error: any) {
     console.error('Spotify search error:', error.response?.data || error.message)
     return NextResponse.json(

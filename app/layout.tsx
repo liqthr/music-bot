@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import * as Sentry from '@sentry/nextjs'
 import './globals.css'
+import { SearchProvider } from '@/components/providers/SearchProvider'
 
 // Attach Sentry trace data to metadata for better trace linking in Sentry
 export function generateMetadata(): Metadata {
@@ -39,7 +40,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-slate-950 text-slate-50 antialiased">
-        {children}
+        <SearchProvider>
+          {children}
+        </SearchProvider>
       </body>
     </html>
   )
