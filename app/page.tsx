@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { SearchBar } from '@/components/search-bar'
 import { SearchResults } from '@/components/search-results'
 import { Player } from '@/components/player'
+import { TidalAuthPanel } from '@/components/tidal-auth-panel'
 import { searchByMode } from '@/lib/search'
 import type { Track, SearchMode } from '@/lib/types'
 
@@ -21,6 +22,7 @@ export default function SimpleMusicPlayerPage() {
   const [volume, setVolume] = useState(1)
   const [queue, setQueue] = useState<Track[]>([])
   const [seekTo, setSeekTo] = useState<number | undefined>(undefined)
+  const [showTidalAuth, setShowTidalAuth] = useState(false)
 
   // Handle search
   const handleSearch = useCallback(async (query: string, mode: SearchMode) => {
@@ -108,6 +110,12 @@ export default function SimpleMusicPlayerPage() {
       <header className="header">
         <div className="header-content">
           <div className="logo">AURALIS</div>
+          <button
+            className="tidal-auth-btn"
+            onClick={() => setShowTidalAuth(!showTidalAuth)}
+          >
+            🌊 Tidal Auth
+          </button>
           <div className="search-wrapper-container">
             <SearchBar
               onSearch={handleSearch}
@@ -117,6 +125,12 @@ export default function SimpleMusicPlayerPage() {
             />
           </div>
         </div>
+        
+        {showTidalAuth && (
+          <div className="auth-dropdown">
+            <TidalAuthPanel />
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -359,6 +373,35 @@ export default function SimpleMusicPlayerPage() {
           font-size: 1.2rem;
           opacity: 0.7;
           margin: 0;
+        }
+
+        .tidal-auth-btn {
+          padding: 0.5rem 1rem;
+          background: linear-gradient(45deg, #00b4db, #0083b0);
+          border: none;
+          border-radius: 6px;
+          color: white;
+          font-weight: 600;
+          cursor: pointer;
+          transition: transform 0.2s;
+          margin: 0 1rem;
+        }
+
+        .tidal-auth-btn:hover {
+          transform: scale(1.05);
+        }
+
+        .auth-dropdown {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          z-index: 1000;
+          margin-top: 1rem;
+          max-width: 500px;
+        }
+
+        .header-content {
+          position: relative;
         }
 
         @media (max-width: 768px) {

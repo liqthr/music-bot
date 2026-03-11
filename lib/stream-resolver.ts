@@ -113,9 +113,22 @@ async function extractStreamUrl(platform: string, url: string): Promise<StreamSo
  */
 async function extractTidalStream(url: string): Promise<StreamSource | null> {
   try {
-    // This would require Tidal API integration
-    // For now, return null - would need Tidal token extraction
-    return null
+    const { extractTidalId, getTidalStream } = await import('./tidal-integration')
+    
+    // Extract Tidal track ID from URL
+    const trackId = extractTidalId(url)
+    if (!trackId) return null
+    
+    // Get stream URL using our Tidal integration
+    const streamData = await getTidalStream(trackId)
+    if (!streamData) return null
+    
+    return {
+      platform: 'tidal',
+      quality: streamData.quality === 'LOSSLESS' ? 'flac' : 'mp3-320',
+      url: streamData.url,
+      direct: true
+    }
   } catch (error) {
     console.error('Tidal stream extraction failed:', error)
     return null
