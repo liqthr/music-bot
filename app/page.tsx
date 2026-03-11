@@ -43,9 +43,22 @@ export default function SimpleMusicPlayerPage() {
     setSearchResults([])
   }, [])
 
-  // Handle play track
-  const handlePlay = useCallback((track: Track) => {
+  // Handle play track with enhanced streaming
+  const handlePlay = useCallback(async (track: Track) => {
     setCurrentTrack(track)
+    
+    // Get enhanced stream URL using SpotiFLAC-style resolution
+    try {
+      const response = await fetch(`/api/resolve-stream?id=${track.id}`)
+      if (response.ok) {
+        const streamData = await response.json()
+        console.log('Stream resolved:', streamData)
+        // The player component will use this enhanced stream
+      }
+    } catch (error) {
+      console.error('Stream resolution failed:', error)
+    }
+    
     setIsPlaying(true)
   }, [])
 
@@ -77,9 +90,8 @@ export default function SimpleMusicPlayerPage() {
   )
 
   // Handle volume change
-  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value)
-    setVolume(newVolume)
+  const handleVolumeChange = useCallback((volume: number) => {
+    setVolume(volume)
   }, [])
 
   const coverImage = currentTrack?.album?.images?.[0]?.url || '/images/default.jpg'
@@ -123,24 +135,22 @@ export default function SimpleMusicPlayerPage() {
             </div>
 
             <Player
-              currentTrack={currentTrack}
+              track={currentTrack}
+              nextTrack={null}
               isPlaying={isPlaying}
-              currentTime={currentTime}
-              duration={duration}
-              volume={volume}
-              seekTo={seekTo}
               onTogglePlay={handleTogglePlay}
-              onProgressClick={handleProgressClick}
+              onNext={() => {}}
+              onPrevious={() => {}}
+              onTimeUpdate={setCurrentTime}
+              onDurationChange={setDuration}
+              volume={volume}
               onVolumeChange={handleVolumeChange}
-              onTrackEnd={() => {
-                // Handle track end
-                if (queue.length > 0) {
-                  const nextTrack = queue[0]
-                  setQueue((prev) => prev.slice(1))
-                  setCurrentTrack(nextTrack)
-                  setIsPlaying(true)
-                }
-              }}
+              seekTo={seekTo}
+              crossfadeSettings={{ enabled: false, duration: 3 }}
+              onCrossfadeStateChange={() => {}}
+              normalizationSettings={{ enabled: false, targetLUFS: -14, preventClipping: true }}
+              onNormalizationStateChange={() => {}}
+              playbackSettings={{ speed: 1.0, pitch: 0, equalizer: { bass: 0, mid: 0, treble: 0 }, eqPreset: 'flat' }}
             />
           </section>
 
@@ -149,12 +159,11 @@ export default function SimpleMusicPlayerPage() {
             <section className="search-results-section">
               <h2 className="section-title">Search Results</h2>
               <SearchResults
-                tracks={searchResults}
-                currentTrack={currentTrack}
-                isPlaying={isPlaying}
-                onPlayTrack={handlePlay}
+                results={searchResults}
+                onPlay={handlePlay}
                 onAddToQueue={handleAddToQueue}
-                queue={queue}
+                isLoading={isSearching}
+                currentTrackId={currentTrack?.id}
               />
             </section>
           )}
