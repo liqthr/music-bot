@@ -125,7 +125,7 @@ export function TidalAuthPanel() {
               ))}
             </ol>
             <div className="demo-note">
-              <strong>🎓 School Project Note:</strong> You can also use "Demo Mode" to test the functionality without real tokens.
+              <strong>🎓 School Project Note:</strong> You can also use &quot;Demo Mode&quot; to test the functionality without real tokens.
             </div>
           </div>
         )}
