@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { SearchBar } from '@/components/search-bar'
 import { SearchResults } from '@/components/search-results'
 import { Player } from '@/components/player'
@@ -23,6 +23,20 @@ export default function SimpleMusicPlayerPage() {
   const [queue, setQueue] = useState<Track[]>([])
   const [seekTo, setSeekTo] = useState<number | undefined>(undefined)
   const [showTidalAuth, setShowTidalAuth] = useState(false)
+
+  // Close Tidal auth when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showTidalAuth && !(event.target as Element).closest('.auth-dropdown') && !(event.target as Element).closest('.tidal-auth-btn')) {
+        setShowTidalAuth(false)
+      }
+    }
+
+    if (showTidalAuth) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showTidalAuth])
 
   // Handle search
   const handleSearch = useCallback(async (query: string, mode: SearchMode) => {
