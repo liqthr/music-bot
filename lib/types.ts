@@ -15,6 +15,11 @@ export interface Track {
   uri?: string
   videoId?: string
   permalink_url?: string
+  source?: {
+    url: string
+    platform: string
+  }
+  backendDownloaded?: boolean
 }
 
 /**
