@@ -2,10 +2,10 @@
   "name": "music-backend",
   "version": "1.0.0",
   "description": "Backend for music downloading and streaming",
-  "main": "server-fixed.js",
+  "main": "server-simple.js",
   "scripts": {
-    "start": "node server-fixed.js",
-    "dev": "nodemon server-fixed.js",
+    "start": "node server-simple.js",
+    "dev": "nodemon server-simple.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
